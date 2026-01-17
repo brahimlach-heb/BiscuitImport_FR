@@ -1,0 +1,39 @@
+:root {
+  --color-primary: #FF0000;
+  /* AMS FOOD Red */
+  --color-secondary: #2c1810;
+  /* Dark Coffee/Biscuit */
+  --color-secondary-light: #3e2723;
+  --color-text: #ffffff;
+  --color-text-muted: #a0a0a0;
+  --font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--color-secondary);
+  color: var(--color-text);
+  line-height: 1.5;
+  font-weight: 400;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+input {
+  font-family: inherit;
+  outline: none;
+}

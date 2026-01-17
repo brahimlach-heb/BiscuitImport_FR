@@ -1,0 +1,320 @@
+.invoice-container {
+    padding: 40px 20px;
+    max-width: 1100px;
+    margin: 0 auto;
+    min-height: calc(100vh - 200px);
+}
+
+.invoice-paper {
+    background: var(--bg-card);
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    padding: 40px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+/* Header */
+.invoice-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding-bottom: 30px;
+    border-bottom: 2px solid var(--border-color);
+    margin-bottom: 40px;
+}
+
+.invoice-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--primary);
+    letter-spacing: -0.5px;
+}
+
+.invoice-meta {
+    text-align: right;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.invoice-meta p {
+    margin: 4px 0;
+}
+
+/* Split View Layout */
+.invoice-split-view {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 60px;
+}
+
+/* Left Column - Form */
+.customer-info-section h3 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.2rem;
+    margin-bottom: 25px;
+    color: var(--text-main);
+}
+
+.info-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.input-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.input-field.full-width {
+    grid-column: 1 / -1;
+}
+
+.input-field label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.input-with-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-with-icon svg {
+    position: absolute;
+    left: 14px;
+    color: var(--text-muted);
+}
+
+.input-with-icon input {
+    width: 100%;
+    padding: 12px 12px 12px 42px;
+    background: var(--bg-main);
+    border: 1.5px solid var(--border-color);
+    border-radius: 12px;
+    font-size: 1rem;
+    color: var(--text-main);
+    transition: all 0.3s ease;
+}
+
+.input-with-icon input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.1);
+}
+
+/* Validation Error */
+.validation-error {
+    margin-top: 20px;
+    padding: 12px 16px;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: 10px;
+    color: #ef4444;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Right Column - Order Summary */
+.invoice-right {
+    background: var(--bg-main);
+    padding: 30px;
+    border-radius: 16px;
+    border: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+}
+
+.order-summary-section h3 {
+    font-size: 1.1rem;
+    margin-bottom: 20px;
+    color: var(--text-main);
+}
+
+.items-simple-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 30px;
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+/* Scrollbar styling for item list */
+.items-simple-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.items-simple-list::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 10px;
+}
+
+.item-simple-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 12px;
+    border-bottom: 1px dashed var(--border-color);
+}
+
+.item-main-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.item-name {
+    font-weight: 600;
+    color: var(--text-main);
+    font-size: 0.95rem;
+}
+
+.item-qty {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.item-line-total {
+    font-weight: 700;
+    color: var(--primary);
+}
+
+/* Totals */
+.invoice-totals {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+.total-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.95rem;
+    color: var(--text-muted);
+}
+
+.total-row.grand-total {
+    margin-top: 8px;
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.total-row.grand-total span:last-child {
+    color: var(--primary);
+}
+
+/* Actions */
+.invoice-actions {
+    margin-top: 40px;
+    display: flex;
+    gap: 16px;
+}
+
+.invoice-btn {
+    flex: 1;
+    padding: 14px 24px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.invoice-btn.btn-cancel {
+    background: var(--bg-main);
+    border: 1.5px solid var(--border-color);
+    color: var(--text-muted);
+}
+
+.invoice-btn.btn-cancel:hover {
+    background: var(--border-color);
+    color: var(--text-main);
+}
+
+.invoice-btn.btn-validate {
+    background: var(--primary);
+    border: none;
+    color: #ffffff !important;
+    box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+}
+
+.invoice-btn.btn-validate:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
+    background: #c5a037;
+    color: #ffffff !important;
+}
+
+.invoice-btn.btn-validate:active {
+    transform: translateY(0);
+}
+
+.desktop-only {
+    display: flex;
+}
+
+.mobile-only {
+    display: none;
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+    .invoice-split-view {
+        grid-template-columns: 1fr;
+        gap: 40px;
+    }
+
+    .invoice-right {
+        order: 2;
+    }
+
+    .desktop-only {
+        display: none;
+    }
+
+    .mobile-only {
+        display: flex;
+    }
+}
+
+@media (max-width: 600px) {
+    .invoice-paper {
+        padding: 25px;
+    }
+
+    .invoice-header {
+        flex-direction: column;
+        gap: 15px;
+        align-items: center;
+        text-align: center;
+    }
+
+    .invoice-meta {
+        text-align: center;
+    }
+
+    .invoice-actions {
+        flex-direction: column;
+    }
+}
