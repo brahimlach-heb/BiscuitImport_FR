@@ -13,4 +13,45 @@ export const userService = {
     }
     return response.json();
   },
+
+  async deleteUser(id, token) {
+    const response = await fetch(`${API_BASE_URL}/api/users/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to delete user');
+    }
+    return response.json();
+  },
+
+  async getUserById(id, token) {
+    const response = await fetch(`${API_BASE_URL}/api/users/${id}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to get user');
+    }
+    return response.json();
+  },
+
+  async updateUser(id, userData, token) {
+    const response = await fetch(`${API_BASE_URL}/api/users/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(userData),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update user');
+    }
+    return response.json();
+  },
 };

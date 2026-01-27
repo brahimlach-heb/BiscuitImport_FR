@@ -30,6 +30,21 @@ export const productService = {
     return response.json();
   },
 
+  async updateProduct(id, productData, token) {
+    const response = await fetch(`${API_BASE_URL}/api/products/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(productData),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update product');
+    }
+    return response.json();
+  },
+
   async getProductById(id, token) {
     const response = await fetch(`${API_BASE_URL}/api/products/${id}`, {
       method: 'GET',
@@ -39,6 +54,19 @@ export const productService = {
     });
     if (!response.ok) {
       throw new Error('Failed to get product');
+    }
+    return response.json();
+  },
+
+  async deleteProduct(id, token) {
+    const response = await fetch(`${API_BASE_URL}/api/products/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to delete product');
     }
     return response.json();
   },

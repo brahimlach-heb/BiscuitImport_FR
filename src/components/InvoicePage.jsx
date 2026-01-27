@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileText, User as UserIcon, MapPin, Phone, CheckCircle, ArrowLeft, Send, Mail, AlertCircle } from 'lucide-react';
+import { FileText, User as UserIcon, MapPin, Phone, CheckCircle, ArrowLeft, Send, Mail, AlertCircle, Truck } from 'lucide-react';
+import Toast from './Toast';
 import './InvoicePage.css';
 
-const InvoicePage = ({ items, onValidate, onCancel }) => {
+const InvoicePage = ({ items, onValidate, onCancel, user }) => {
     const [customer, setCustomer] = useState({
-        name: '',
+        name: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : '',
         address: '',
-        phone: '',
-        email: ''
+        phone: user?.phone || '',
+        email: user?.email || ''
     });
 
     const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [notification, setNotification] = useState(null);
 
     const subtotal = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     const tax = subtotal * 0.20; // 20% TVA
@@ -23,20 +26,37 @@ const InvoicePage = ({ items, onValidate, onCancel }) => {
         if (error) setError(''); // Clear error on typing
     };
 
-    const handleValidate = () => {
+    const handleValidate = async () => {
         if (!customer.name.trim() || !customer.address.trim() || !customer.phone.trim() || !customer.email.trim()) {
-            setError('Veuillez renseigner toutes les informations requises pour valider la commande.');
+            setNotification({
+                type: 'error',
+                message: 'Veuillez renseigner toutes les informations requises pour valider la commande.'
+            });
             return;
         }
 
         // Optional: Simple email regex
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(customer.email)) {
-            setError('Veuillez renseigner une adresse email valide.');
+            setNotification({
+                type: 'error',
+                message: 'Veuillez renseigner une adresse email valide.'
+            });
             return;
         }
 
-        onValidate(customer);
+        setIsLoading(true);
+        try {
+            await onValidate(customer);
+            // Success notification is shown by parent component (HomePage)
+        } catch (error) {
+            setNotification({
+                type: 'error',
+                message: 'Erreur lors de la validation de la commande. Veuillez réessayer.'
+            });
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -46,16 +66,30 @@ const InvoicePage = ({ items, onValidate, onCancel }) => {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
         >
+            {/* Toast Notifications */}
+            <AnimatePresence>
+                {notification && (
+                    <div style={{ position: 'fixed', top: '20px', right: '20px', zIndex: 9999 }}>
+                        <Toast
+                            message={notification.message}
+                            type={notification.type}
+                            onClose={() => setNotification(null)}
+                            duration={3000}
+                        />
+                    </div>
+                )}
+            </AnimatePresence>
+
             <div className="invoice-paper">
                 {/* Header */}
                 <div className="invoice-header">
                     <div className="invoice-logo">
                         <FileText size={32} />
-                        <span>FACTURE</span>
+                        <span>DEVIS</span>
                     </div>
                     <div className="invoice-meta">
                         <p>Date : {new Date().toLocaleDateString('fr-FR')}</p>
-                        <p>N° Facture : {Math.floor(Math.random() * 900000) + 100000}</p>
+                        <p>N° Devis : xxxxxxx</p>
                     </div>
                 </div>
 
@@ -135,14 +169,30 @@ const InvoicePage = ({ items, onValidate, onCancel }) => {
                         </AnimatePresence>
 
                         <div className="invoice-actions desktop-only">
-                            <button className="invoice-btn btn-cancel" onClick={onCancel}>
+                            <button className="invoice-btn btn-cancel" onClick={onCancel} disabled={isLoading}>
                                 <ArrowLeft size={18} /> Annuler
                             </button>
                             <button
                                 className="invoice-btn btn-validate"
                                 onClick={handleValidate}
+                                disabled={isLoading}
                             >
-                                Valider la commande <Send size={18} />
+                                {isLoading ? (
+                                    <>
+                                        <motion.div
+                                            animate={{ x: [-10, 10, -10] }}
+                                            transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
+                                            style={{ display: 'flex', alignItems: 'center' }}
+                                        >
+                                            <Truck size={18} />
+                                        </motion.div>
+                                        <span>Envoi en cours...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        Valider la commande <Send size={18} />
+                                    </>
+                                )}
                             </button>
                         </div>
                     </div>
@@ -183,14 +233,30 @@ const InvoicePage = ({ items, onValidate, onCancel }) => {
 
                 {/* Mobile Actions (Visible only on mobile) */}
                 <div className="invoice-actions mobile-only">
-                    <button className="invoice-btn btn-cancel" onClick={onCancel}>
+                    <button className="invoice-btn btn-cancel" onClick={onCancel} disabled={isLoading}>
                         <ArrowLeft size={18} /> Annuler
                     </button>
                     <button
                         className="invoice-btn btn-validate"
                         onClick={handleValidate}
+                        disabled={isLoading}
                     >
-                        Valider la commande <Send size={18} />
+                        {isLoading ? (
+                            <>
+                                <motion.div
+                                    animate={{ x: [-10, 10, -10] }}
+                                    transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
+                                    style={{ display: 'flex', alignItems: 'center' }}
+                                >
+                                    <Truck size={18} />
+                                </motion.div>
+                                <span>Envoi...</span>
+                            </>
+                        ) : (
+                            <>
+                                Valider la commande <Send size={18} />
+                            </>
+                        )}
                     </button>
                 </div>
             </div>

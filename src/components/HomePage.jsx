@@ -4,10 +4,14 @@ import { Filter, X, ChevronRight, ShoppingBag, User, LogOut, Settings, Sun, Moon
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { getAllProducts } from '../store/slices/productSlice';
 import { getAllCategories } from '../store/slices/categorySlice';
+import { getAllRoles } from '../store/slices/roleSlice';
+import { getProfile } from '../store/slices/authSlice';
+import { orderService } from '../services/orderService';
 import LogisticsBackground from './LogisticsBackground';
 import InvoicePage from './InvoicePage';
 import InvoiceHistory from './InvoiceHistory';
 import AdminDashboard from './AdminDashboard';
+import Toast from './Toast';
 import './HomePage.css';
 
 // --- Mock Data ---
@@ -41,22 +45,6 @@ const PRODUCTS = [
     { id: 2, name: 'Choco Delight', category: 'biscuits', brand: 'Kamara', flavor: 'Chocolat', price: 30.50, packageUnit: '10 pcs' },
     { id: 3, name: 'Biscuit Caramel', category: 'biscuits', brand: 'Sweetco', flavor: 'Caramel Classique', price: 22.00, packageUnit: '24 pcs' },
     { id: 4, name: 'Larch Original', category: 'biscuits', brand: 'Larch', flavor: 'Lait Crémeux', price: 28.00, packageUnit: '12 pcs' },
-
-    // Multi-Flavor Product Example
-    {
-        id: 100,
-        name: 'Mix Delight',
-        category: 'biscuits',
-        brand: 'Kamara',
-        flavor: 'Mix',
-        price: 35.00,
-        packageUnit: 'Boîte 500g',
-        variants: [
-            { flavor: 'Chocolat', color: '#795548' },
-            { flavor: 'Amande', color: '#EEDC82' },
-            { flavor: 'Vert Nature', color: '#4CAF50' }
-        ]
-    },
 
     { id: 14, name: 'Crispy Oat', category: 'biscuits', brand: 'Larch', flavor: 'Amande', price: 26.00, packageUnit: '18 pcs' },
     { id: 15, name: 'Dark Biscuit', category: 'biscuits', brand: 'Kamara', flavor: 'Noir Intense', price: 32.00, packageUnit: '10 pcs' },
@@ -106,35 +94,92 @@ PRODUCTS.forEach(p => {
 
 const ITEMS_PER_PAGE = 8;
 
-const ProductDetailModal = ({ product, isOpen, onClose, onAddToCart }) => {
-    const [selectedVariant, setSelectedVariant] = useState(
-        product.variants ? product.variants[0] : null
-    );
+const ProductDetailModal = ({ product, isOpen, onClose, onAddToCart, categories = [] }) => {
     const [quantity, setQuantity] = useState(1);
+    const [selectedFlavor, setSelectedFlavor] = useState(null);
+    const [imageError, setImageError] = useState(false);
+    
+    // Get category name from category_id
+    const getCategoryName = () => {
+        if (product.category_id && categories.length > 0) {
+            const category = categories.find(cat => cat.id === product.category_id);
+            return category ? category.name : product.category_id;
+        }
+        return product.category || 'N/A';
+    };
+
+    // Function to check if image URL exists
+    const checkImageExists = (url) => {
+        return new Promise((resolve) => {
+            if (!url) {
+                resolve(false);
+                return;
+            }
+            const img = new Image();
+            img.onload = () => resolve(true);
+            img.onerror = () => resolve(false);
+            img.src = url;
+        });
+    };
+
+    // Handle flavor selection with image validation
+    const handleFlavorSelect = async (flavor) => {
+        console.log('🎨 Flavor cliqué:', flavor);
+        setSelectedFlavor(flavor);
+        if (flavor.image) {
+            const isValid = await checkImageExists(flavor.image);
+            if (!isValid) {
+                console.warn('⚠️ Image non valide pour le flavor:', flavor.name);
+                setImageError(true);
+            } else {
+                console.log('✅ Image valide');
+                setImageError(false);
+            }
+        } else {
+            setImageError(true);
+        }
+    };
 
     // Reset state when product changes
     useEffect(() => {
         if (product) {
-            setSelectedVariant(product.variants ? product.variants[0] : null);
             setQuantity(1);
+            setSelectedFlavor(product.flavors && product.flavors.length > 0 ? product.flavors[0] : null);
+            setImageError(false);
         }
     }, [product]);
 
     if (!isOpen || !product) return null;
 
-    const imagePlaceholderStyle = selectedVariant
-        ? { backgroundColor: selectedVariant.color }
-        : { backgroundColor: FLAVOR_COLORS[product.flavor] || '#ccc' };
+    // Get product image - use selected flavor image if available
+    const getProductImage = () => {
+        console.log('🖼️ Selected Flavor:', selectedFlavor);
+        if (imageError) {
+            console.log('❌ Image error, showing fallback');
+            return null;
+        }
+        if (selectedFlavor && selectedFlavor.image) {
+            console.log('✅ Using selected flavor image:', selectedFlavor.image);
+            return selectedFlavor.image;
+        }
+        if (product.flavors && product.flavors.length > 0) {
+            console.log('🔄 Using first flavor image:', product.flavors[0].image);
+            return product.flavors[0].image || product.image;
+        }
+        console.log('📦 Using product image:', product.image);
+        return product.image;
+    };
+
+    const productImage = getProductImage();
+
+    const imagePlaceholderStyle = selectedFlavor
+        ? { backgroundColor: selectedFlavor.color }
+        : product.flavors && product.flavors.length > 0
+        ? { backgroundColor: product.flavors[0].color }
+        : { backgroundColor: FLAVOR_COLORS[product.flavor] || '#e0e0e0' };
 
     const handleAdd = () => {
-        const productToAdd = product.variants ? {
-            ...product,
-            id: `${product.id}-${selectedVariant.flavor}`,
-            name: `${product.name} (${selectedVariant.flavor})`,
-            flavor: selectedVariant.flavor
-        } : product;
-
-        onAddToCart(null, { ...productToAdd, quantityToAdd: quantity }); // null event since we might not have one or dont need propagation stop here
+        onAddToCart(null, { ...product, quantityToAdd: quantity });
         onClose();
     };
 
@@ -156,77 +201,162 @@ const ProductDetailModal = ({ product, isOpen, onClose, onAddToCart }) => {
                     {/* Image Column */}
                     <div className="detail-image-col">
                         <div className="detail-image-placeholder" style={imagePlaceholderStyle}>
-                            <span>{selectedVariant ? selectedVariant.flavor : product.flavor}</span>
+                            {productImage && !imageError ? (
+                                <img 
+                                    src={productImage} 
+                                    alt=""
+                                    onError={() => setImageError(true)}
+                                    style={{ 
+                                        width: '100%', 
+                                        height: '100%', 
+                                        objectFit: 'cover',
+                                        borderRadius: '12px 12px 0 0'
+                                    }} 
+                                />
+                            ) : (
+                                <span style={{ 
+                                    color: 'white', 
+                                    fontWeight: '700', 
+                                    fontSize: '1.5rem',
+                                    textShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                                    textAlign: 'center',
+                                    padding: '0 20px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    width: '100%',
+                                    height: '100%'
+                                }}>
+                                    {selectedFlavor ? selectedFlavor.name : 
+                                     product.flavors && product.flavors.length > 0 ? product.flavors[0].name : 
+                                     product.flavor || 'Image'}
+                                </span>
+                            )}
                         </div>
                     </div>
 
                     {/* Info Column */}
                     <div className="detail-info-col">
                         <div className="detail-header">
-                            <span className="detail-brand">{product.brand}</span>
+                            <span className="detail-brand">{product.brand || product.marque}</span>
                             <h2>{product.name}</h2>
                             <div className="detail-price">{product.price.toFixed(2)} DH</div>
                         </div>
 
                         <div className="detail-body">
-                            <p className="detail-description">{product.description}</p>
+                            {product.ingredients && (
+                                <div className="detail-ingredients">
+                                    <strong>Ingrédients:</strong>
+                                    <p>{product.ingredients}</p>
+                                </div>
+                            )}
 
-                            <div className="detail-ingredients">
-                                <strong>Ingrédients:</strong>
-                                <p>{product.ingredients}</p>
-                            </div>
+                            {/* Afficher la description comme paragraphe si elle n'est pas structurée */}
+                            {product.description && !product.description.includes('/') && !product.description.includes(',') && (
+                                <div className="detail-description-section">
+                                    <strong>Description:</strong>
+                                    <p>{product.description}</p>
+                                </div>
+                            )}
 
                             <div className="detail-specs">
                                 <h3>Caractéristiques Techniques</h3>
                                 <div className="specs-table">
+                                    {/* Afficher la description structurée si elle contient "/" et "," */}
+                                    {product.description && product.description.includes('/') && product.description.includes(',') && (
+                                        <>
+                                            {product.description.split('/').map((row, idx) => {
+                                                const parts = row.split(',').map(s => s.trim());
+                                                if (parts.length >= 2) {
+                                                    return (
+                                                        <div className="spec-row" key={`desc-${idx}`}>
+                                                            <div className="spec-cell label">{parts[0]}</div>
+                                                            <div className="spec-cell value">{parts[1]}</div>
+                                                        </div>
+                                                    );
+                                                }
+                                                return null;
+                                            })}
+                                        </>
+                                    )}
+                                    <div className="spec-row">
+                                        <div className="spec-cell label">Catégorie</div>
+                                        <div className="spec-cell value">{getCategoryName()}</div>
+                                    </div>
                                     <div className="spec-row">
                                         <div className="spec-cell label">Marque</div>
-                                        <div className="spec-cell value">{product.brand}</div>
+                                        <div className="spec-cell value">{product.brand || product.marque || 'N/A'}</div>
                                     </div>
-                                    <div className="spec-row">
-                                        <div className="spec-cell label">Fabricant</div>
-                                        <div className="spec-cell value">{product.manufacturer}</div>
-                                    </div>
-                                    <div className="spec-row">
-                                        <div className="spec-cell label">Pays d'origine</div>
-                                        <div className="spec-cell value">{product.origin}</div>
-                                    </div>
-                                    <div className="spec-row">
-                                        <div className="spec-cell label">Format</div>
-                                        <div className="spec-cell value">{product.format}</div>
-                                    </div>
-                                    <div className="spec-row">
-                                        <div className="spec-cell label">Dimensions</div>
-                                        <div className="spec-cell value">{product.dimensions}</div>
-                                    </div>
-                                    <div className="spec-row">
-                                        <div className="spec-cell label">Emballage</div>
-                                        <div className="spec-cell value">{product.packagingType}</div>
-                                    </div>
-                                    <div className="spec-row">
-                                        <div className="spec-cell label">Contenu</div>
-                                        <div className="spec-cell value">{product.contentName}</div>
-                                    </div>
+                                    {product.stock !== undefined && (
+                                        <div className="spec-row">
+                                            <div className="spec-cell label">Stock disponible</div>
+                                            <div className="spec-cell value">{product.stock} unités</div>
+                                        </div>
+                                    )}
+                                    {product.packageUnit && (
+                                        <div className="spec-row">
+                                            <div className="spec-cell label">Unité d'emballage</div>
+                                            <div className="spec-cell value">{product.packageUnit} produits/paquet</div>
+                                        </div>
+                                    )}
+                                    {product.manufacturer && (
+                                        <div className="spec-row">
+                                            <div className="spec-cell label">Fabricant</div>
+                                            <div className="spec-cell value">{product.manufacturer}</div>
+                                        </div>
+                                    )}
+                                    {product.origin && (
+                                        <div className="spec-row">
+                                            <div className="spec-cell label">Pays d'origine</div>
+                                            <div className="spec-cell value">{product.origin}</div>
+                                        </div>
+                                    )}
+                                    {product.format && (
+                                        <div className="spec-row">
+                                            <div className="spec-cell label">Format</div>
+                                            <div className="spec-cell value">{product.format}</div>
+                                        </div>
+                                    )}
+                                    {product.dimensions && (
+                                        <div className="spec-row">
+                                            <div className="spec-cell label">Dimensions</div>
+                                            <div className="spec-cell value">{product.dimensions}</div>
+                                        </div>
+                                    )}
+                                    {product.packagingType && (
+                                        <div className="spec-row">
+                                            <div className="spec-cell label">Emballage</div>
+                                            <div className="spec-cell value">{product.packagingType}</div>
+                                        </div>
+                                    )}
+                                    {product.contentName && (
+                                        <div className="spec-row">
+                                            <div className="spec-cell label">Contenu</div>
+                                            <div className="spec-cell value">{product.contentName}</div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
 
                         <div className="detail-selection">
-                            {product.variants && (
+                            {product.flavors && product.flavors.length > 1 && (
                                 <div className="variant-select-section">
-                                    <label>Flavor :</label>
+                                    <label>Flavors disponibles :</label>
                                     <div className="variants-chips" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-                                        {product.variants.map(variant => (
+                                        {product.flavors.map(flavor => (
                                             <button
-                                                key={variant.flavor}
-                                                className={`flavor-chip ${selectedVariant?.flavor === variant.flavor ? 'selected' : ''}`}
-                                                onClick={() => setSelectedVariant(variant)}
+                                                key={flavor.id}
+                                                className={`flavor-chip ${selectedFlavor?.id === flavor.id ? 'selected' : ''}`}
+                                                onClick={() => {
+                                                    handleFlavorSelect(flavor);
+                                                }}
                                                 style={{
-                                                    '--chip-color': FLAVOR_COLORS[variant.flavor] || variant.color
+                                                    '--chip-color': flavor.color
                                                 }}
                                             >
-                                                <span className="chip-indicator" style={{ backgroundColor: FLAVOR_COLORS[variant.flavor] || variant.color }}></span>
-                                                <span className="chip-label">{variant.flavor}</span>
+                                                <span className="chip-indicator" style={{ backgroundColor: flavor.color }}></span>
+                                                <span className="chip-label">{flavor.name}</span>
                                             </button>
                                         ))}
                                     </div>
@@ -256,28 +386,87 @@ const ProductDetailModal = ({ product, isOpen, onClose, onAddToCart }) => {
     );
 };
 
-const ProductCard = ({ product, onAddToCart, onViewProduct }) => {
-    const [selectedVariant, setSelectedVariant] = useState(
-        product.variants ? product.variants[0] : null
-    );
+const ProductCard = ({ product, onAddToCart, onViewProduct, categories = [] }) => {
     const [quantity, setQuantity] = useState(1);
+    const [selectedFlavor, setSelectedFlavor] = useState(
+        product.flavors && product.flavors.length > 0 ? product.flavors[0] : null
+    );
+    const [imageError, setImageError] = useState(false);
 
-    // Dynamic styles based on variant
-    const imagePlaceholderStyle = selectedVariant
-        ? { backgroundColor: selectedVariant.color + '40' } // 40 is opacity in hex
-        : {};
+    // Get category icon from category_id
+    const getCategoryIcon = () => {
+        // Try to find in Redux categories using category_id
+        if (product.category_id && categories.length > 0) {
+            const category = categories.find(cat => Number(cat.id) === Number(product.category_id));
+            if (category) {
+                return category.emoji || category.icon || '❔';
+            }
+        }
+        
+        // Try to find in mock CATEGORIES using category field (for demo mode)
+        if (product.category) {
+            const mockCategory = CATEGORIES.find(cat => cat.id === product.category);
+            if (mockCategory?.icon) return mockCategory.icon;
+        }
+        
+        // Default fallback
+        return '❔';
+    };
+
+    // Function to check if image URL exists
+    const checkImageExists = (url) => {
+        return new Promise((resolve) => {
+            if (!url) {
+                resolve(false);
+                return;
+            }
+            const img = new Image();
+            img.onload = () => resolve(true);
+            img.onerror = () => resolve(false);
+            img.src = url;
+        });
+    };
+
+    // Handle flavor selection with image validation
+    const handleFlavorSelect = async (flavor) => {
+        setSelectedFlavor(flavor);
+        if (flavor.image) {
+            const isValid = await checkImageExists(flavor.image);
+            if (!isValid) {
+                console.warn('⚠️ Image non valide pour le flavor:', flavor.name);
+                setImageError(true);
+            } else {
+                setImageError(false);
+            }
+        } else {
+            setImageError(true);
+        }
+    };
+
+    // Get product image - use selected flavor image if available
+    const getProductImage = () => {
+        if (imageError) return null;
+        if (selectedFlavor && selectedFlavor.image) {
+            return selectedFlavor.image;
+        }
+        if (product.flavors && product.flavors.length > 0) {
+            return product.flavors[0].image || product.image;
+        }
+        return product.image;
+    };
+
+    const productImage = getProductImage();
+
+    // Dynamic styles based on selected flavor
+    const imagePlaceholderStyle = selectedFlavor
+        ? { backgroundColor: selectedFlavor.color }
+        : product.flavors && product.flavors.length > 0
+        ? { backgroundColor: product.flavors[0].color }
+        : { backgroundColor: '#e0e0e0' };
 
     const handleAdd = (e) => {
         e.stopPropagation();
-        // If product has variants, pass the specific variant details
-        const productToAdd = product.variants ? {
-            ...product,
-            id: `${product.id}-${selectedVariant.flavor}`, // Unique ID for cart
-            name: `${product.name} (${selectedVariant.flavor})`,
-            flavor: selectedVariant.flavor // Override flavor
-        } : product;
-
-        onAddToCart(e, { ...productToAdd, quantityToAdd: quantity });
+        onAddToCart(e, { ...product, quantityToAdd: quantity });
     };
 
     const handleQuantityChange = (e) => {
@@ -293,7 +482,36 @@ const ProductCard = ({ product, onAddToCart, onViewProduct }) => {
     return (
         <div className="product-card">
             <div className="product-image-placeholder" style={imagePlaceholderStyle}>
-                <span>{selectedVariant ? selectedVariant.flavor : 'Image'}</span>
+                {productImage && !imageError ? (
+                    <img 
+                        src={productImage} 
+                        alt=""
+                        onError={() => setImageError(true)}
+                        style={{ 
+                            width: '100%', 
+                            height: '100%', 
+                            objectFit: 'cover',
+                            borderRadius: '8px 8px 0 0'
+                        }} 
+                    />
+                ) : (
+                    <span style={{ 
+                        color: 'white', 
+                        fontWeight: '600', 
+                        fontSize: '1.1rem',
+                        textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                        textAlign: 'center',
+                        padding: '0 10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '100%',
+                        height: '100%'
+                    }}>
+                        {selectedFlavor ? selectedFlavor.name : 
+                         product.flavors && product.flavors.length > 0 ? product.flavors[0].name : 'Image'}
+                    </span>
+                )}
 
                 <div className="product-hover-overlay">
                     <div className="product-actions-container">
@@ -319,7 +537,7 @@ const ProductCard = ({ product, onAddToCart, onViewProduct }) => {
             </div>
             <div className="product-info">
                 <div className="product-header-row">
-                    <div className="product-brand">{product.brand}</div>
+                    <div className="product-brand">{product.brand || product.marque}</div>
                     <div className="product-price">{product.price.toFixed(2)} DH</div>
                 </div>
 
@@ -327,33 +545,40 @@ const ProductCard = ({ product, onAddToCart, onViewProduct }) => {
 
                 <div className="product-footer-row">
                     <div className="product-meta">
-                        {product.variants ? (
+                        {product.flavors && product.flavors.length > 0 ? (
                             <div className="variants-dots" style={{ display: 'flex', gap: '5px' }}>
-                                {product.variants.map(variant => (
+                                {product.flavors.map(flavor => (
                                     <div
-                                        key={variant.flavor}
+                                        key={flavor.id}
                                         className="flavor-dot"
-                                        title={`Flavor : ${variant.flavor}`}
+                                        title={`Flavor : ${flavor.name}`}
                                         style={{
-                                            backgroundColor: FLAVOR_COLORS[variant.flavor] || variant.color,
-                                            border: selectedVariant?.flavor === variant.flavor ? '2px solid var(--text-main)' : '1px solid rgba(0,0,0,0.1)',
-                                            transform: selectedVariant?.flavor === variant.flavor ? 'scale(1.2)' : 'scale(1)'
+                                            backgroundColor: flavor.color || '#ccc',
+                                            cursor: 'pointer',
+                                            border: selectedFlavor?.id === flavor.id ? '2px solid #ffffff' : 'none',
+                                            transform: selectedFlavor?.id === flavor.id ? 'scale(1.2)' : 'scale(1)',
+                                            transition: 'all 0.2s ease',
+                                            boxShadow: selectedFlavor?.id === flavor.id ? '0 0 0 2px rgba(0,0,0,0.2)' : 'none'
                                         }}
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            setSelectedVariant(variant);
+                                            handleFlavorSelect(flavor);
                                         }}
                                     />
                                 ))}
                             </div>
-                        ) : (
+                        ) : product.flavor ? (
                             <div
                                 className="flavor-dot"
                                 title={`Flavor : ${product.flavor}`}
-                                style={{ backgroundColor: FLAVOR_COLORS[product.flavor] || '#ccc' }}
+                                style={{ backgroundColor: FLAVOR_COLORS[product.flavor] || '#ccc', border: 'none' }}
                             />
-                        )}
-                        <span className="package-unit">{product.packageUnit}</span>
+                        ) : null}
+                        <span className="package-unit" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                           
+                            <span>{product.packageUnit || product.stock || ''}</span>
+                        </span>
+                         <span style={{ fontSize: '0.9rem' }}>{getCategoryIcon()}</span>
                     </div>
                 </div>
 
@@ -416,10 +641,25 @@ const HomePage = ({ onLogout }) => {
     const dispatch = useAppDispatch();
     const { products: reduxProducts = [], loading: productsLoading } = useAppSelector(state => state.product);
     const { categories: reduxCategories = [], loading: categoriesLoading } = useAppSelector(state => state.category);
+    const { user: currentUser } = useAppSelector(state => state.auth);
+    const { roles = [] } = useAppSelector(state => state.role);
+
+    // Extract actual user object from API response
+    const user = currentUser?.data?.user || null;
 
     const isDemoMode = (reduxProducts.length === 0 || reduxCategories.length === 0) && !productsLoading && !categoriesLoading;
     const products = isDemoMode ? PRODUCTS : reduxProducts;
     const categories = isDemoMode ? CATEGORIES : reduxCategories;
+
+    // Log pour debug
+    useEffect(() => {
+        console.log('🏠 HomePage - Mode:', isDemoMode ? 'DEMO' : 'API');
+        console.log('🏠 HomePage - Nombre de produits:', products.length);
+        if (products.length > 0 && !isDemoMode) {
+            console.log('🏠 HomePage - Exemple de produit API:', products[0]);
+            console.log('🏠 HomePage - Flavors du produit:', products[0]?.flavors);
+        }
+    }, [products, isDemoMode]);
 
     // Theme State
     const [theme, setTheme] = useState(() => {
@@ -460,22 +700,46 @@ const HomePage = ({ onLogout }) => {
     const [notification, setNotification] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
 
-    // Mock User Data
-    const userData = {
-        firstName: 'Jean',
-        lastName: 'Dupont',
-        role: 'Client Premium',
-        pendingInvoices: 2
+    // User Data from Redux
+    const userData = user ? {
+        firstName: user.first_name || 'Utilisateur',
+        lastName: user.last_name || '',
+        role: roles.find(r => r.id === user.role_id)?.code || user.role_code || 'CLIENT',
+        pendingInvoices: 0
+    } : {
+        firstName: 'Utilisateur',
+        lastName: '',
+        role: 'Invité',
+        pendingInvoices: 0
     };
 
     // Fetch initial data
     useEffect(() => {
         const token = sessionStorage.getItem('token');
         if (token) {
-            dispatch(getAllProducts({ category: null, token }));
+            dispatch(getProfile(token));
+            dispatch(getAllProducts({ category: null, token })).then((result) => {
+                console.log('🔍 HomePage - Produits récupérés:', result.payload);
+                if (result.payload && result.payload.length > 0) {
+                    console.log('🔍 Premier produit:', result.payload[0]);
+                    console.log('🔍 Flavors du premier produit:', result.payload[0]?.flavors);
+                }
+            });
             dispatch(getAllCategories(token));
+            dispatch(getAllRoles(token));
         }
     }, [dispatch]);
+
+    // Fetch products when category changes
+    useEffect(() => {
+        const token = sessionStorage.getItem('token');
+        if (token && !isDemoMode) {
+            console.log('🔄 Récupération des produits pour la catégorie:', selectedCategory);
+            dispatch(getAllProducts({ category: selectedCategory, token })).then((result) => {
+                console.log('✅ Produits récupérés pour catégorie', selectedCategory, ':', result.payload?.length || 0);
+            });
+        }
+    }, [selectedCategory, dispatch, isDemoMode]);
 
     const handleNavigate = (view) => {
         setIsLoading(true);
@@ -487,6 +751,23 @@ const HomePage = ({ onLogout }) => {
             setIsLoading(false);
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }, 600);
+    };
+
+    // Handler pour la déconnexion avec nettoyage complet
+    const handleLogout = () => {
+        // Vider le panier
+        setCartItems([]);
+        
+        // Vider le sessionStorage
+        sessionStorage.clear();
+        
+        // Vider le localStorage
+        localStorage.clear();
+        
+        // Appeler la fonction de déconnexion parent
+        if (onLogout) {
+            onLogout();
+        }
     };
 
     // Reset pagination when filters change
@@ -574,24 +855,76 @@ const HomePage = ({ onLogout }) => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    const handleOrderValidation = (customerData) => {
-        // Here we would normally send to API
-        console.log('Order Validated:', { customer: customerData, items: cartItems, total: cartTotal });
+    const handleOrderValidation = async (customerData) => {
+        const token = sessionStorage.getItem('token');
+        
+        if (!token) {
+            setNotification({
+                type: 'error',
+                message: 'Vous devez être connecté pour passer une commande.'
+            });
+            setTimeout(() => setNotification(null), 5000);
+            return;
+        }
 
-        // Show Success Toast
-        setNotification({
-            type: 'success',
-            message: 'Votre commande a été validée avec succès !'
-        });
+        if (!user || !user.id) {
+            setNotification({
+                type: 'error',
+                message: 'Impossible de récupérer les informations utilisateur.'
+            });
+            setTimeout(() => setNotification(null), 5000);
+            return;
+        }
 
-        // Clear Cart
-        setCartItems([]);
+        try {
+            // Calculer les totaux
+            const subtotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+            const total = cartTotal;
 
-        // Back to Shop
-        setCurrentView('shop');
+            // Préparer les données de la commande selon le format API
+            const orderData = {
+                user_id: user.id,
+                status: "pending",
+                subtotal: subtotal,
+                total: total,
+                customer_name: customerData.name,
+                customer_email: customerData.email,
+                customer_phone: customerData.phone,
+                customer_address: customerData.address,
+                lines: cartItems.map(item => ({
+                    product_id: item.id,
+                    quantity: item.quantity,
+                    unit_price: item.price,
+                    final_price: item.price * item.quantity
+                }))
+            };
 
-        // Clear notification after 5s
-        setTimeout(() => setNotification(null), 5000);
+            console.log('📦 Envoi de la commande:', orderData);
+            
+            // Envoyer la commande à l'API
+            const response = await orderService.createOrder(orderData, token);
+            console.log('✅ Commande créée:', response);
+
+            // Clear Cart
+            setCartItems([]);
+
+            // Back to Shop
+            setCurrentView('shop');
+
+            // Show Success Toast (after navigation to ensure it's visible)
+            setTimeout(() => {
+                setNotification({
+                    type: 'success',
+                    message: 'Votre commande a été validée avec succès !'
+                });
+            }, 100);
+        } catch (error) {
+            console.error('❌ Erreur lors de la création de la commande:', error);
+            setNotification({
+                type: 'error',
+                message: 'Erreur lors de la validation de la commande. Veuillez réessayer.'
+            });
+        }
     };
 
     const handleOrderCancel = () => {
@@ -602,8 +935,11 @@ const HomePage = ({ onLogout }) => {
     // Filtering Logic
     const filteredProducts = useMemo(() => {
         return products.filter(product => {
-            // Category Match
-            if (selectedCategory && product.category !== selectedCategory) return false;
+            // Category Match - handle both category (demo) and category_id (API)
+            if (selectedCategory) {
+                const productCategory = product.category_id || product.category;
+                if (productCategory !== selectedCategory) return false;
+            }
 
             // Brand Match (if any selected)
             if (selectedBrands.length > 0 && !selectedBrands.includes(product.brand)) return false;
@@ -651,6 +987,7 @@ const HomePage = ({ onLogout }) => {
                         isOpen={!!selectedProduct}
                         onClose={handleCloseProductModal}
                         onAddToCart={handleAddToCart}
+                        categories={categories}
                     />
                 )}
             </AnimatePresence>
@@ -684,7 +1021,7 @@ const HomePage = ({ onLogout }) => {
                                 <div className="empty-cart-state">
                                     <ShoppingBag size={48} />
                                     <p>Votre panier est vide.</p>
-                                    <button onClick={() => setIsCartOpen(false)}>Continuer mes achats</button>
+                                    <button onClick={() => { setIsCartOpen(false); setCurrentView('shop'); }}>Continuer mes achats</button>
                                 </div>
                             ) : (
                                 <div className="cart-grid">
@@ -768,7 +1105,12 @@ const HomePage = ({ onLogout }) => {
             <header className="home-header">
                 <div
                     className="header-brand"
-                    onClick={() => handleNavigate('shop')}
+                    onClick={() => {
+                        handleNavigate('shop');
+                        // Recharger les produits depuis l'API
+                        dispatch(getAllProducts());
+                        dispatch(getAllCategories());
+                    }}
                     style={{ cursor: 'pointer' }}
                 >
                     AMS <span className="brand-red">FOOD</span>
@@ -855,7 +1197,7 @@ const HomePage = ({ onLogout }) => {
                                 >
                                     <div className="profile-card-header">
                                         <div className="profile-card-avatar">
-                                            {userData.firstName[0]}{userData.lastName[0]}
+                                            {userData.firstName?.[0]}{userData.lastName?.[0]}
                                         </div>
                                         <h3 className="profile-card-name">{userData.firstName} {userData.lastName}</h3>
                                         <p className="profile-card-role">{userData.role}</p>
@@ -864,22 +1206,25 @@ const HomePage = ({ onLogout }) => {
                                     <div className="dropdown-item factures-btn" onClick={() => handleNavigate('history')}>
                                         <div className="dropdown-item-content">
                                             <FileText size={18} />
-                                            <span>Mes Factures</span>
+                                            <span>Mes Devis</span>
                                         </div>
                                         {userData.pendingInvoices > 0 && (
-                                            <span className="facture-badge pulse">{userData.pendingInvoices}</span>
+                                            <span className="facture-badge pulse">{console.log("userData:",userData)}</span>
                                         )}
                                     </div>
 
-                                    <div className="dropdown-item" onClick={() => handleNavigate('admin')}>
-                                        <div className="dropdown-item-content">
-                                            <Settings size={18} />
-                                            <span>Administration</span>
+                                    {/* Admin menu - only for ADMIN and MANAGER roles */}
+                                    {(userData.role === 'ADMIN' || userData.role === 'MANAGER') && (
+                                        <div className="dropdown-item" onClick={() => handleNavigate('admin')}>
+                                            <div className="dropdown-item-content">
+                                                <Settings size={18} />
+                                                <span>Administration</span>
+                                            </div>
+                                            <ChevronRight size={14} />
                                         </div>
-                                        <ChevronRight size={14} />
-                                    </div>
+                                    )}
 
-                                    <div className="dropdown-item danger" onClick={onLogout}>
+                                    <div className="dropdown-item danger" onClick={handleLogout}>
                                         <div className="dropdown-item-content">
                                             <LogOut size={18} />
                                             <span>Déconnexion</span>
@@ -958,7 +1303,7 @@ const HomePage = ({ onLogout }) => {
                                         </div>
 
                                         <div className="filter-group">
-                                            <div className="filter-group-title">Saveur</div>
+                                            <div className="filter-group-title">Flavours</div>
                                             {FILTERS.flavors.map(flavor => (
                                                 <label key={flavor} className="checkbox-label">
                                                     <input
@@ -990,7 +1335,7 @@ const HomePage = ({ onLogout }) => {
                                             className={`category-card ${selectedCategory === cat.id ? 'selected' : ''}`}
                                             onClick={() => setSelectedCategory(selectedCategory === cat.id ? null : cat.id)}
                                         >
-                                            <span className="category-icon">{cat.icon}</span>
+                                            <span className="category-icon">{cat.emoji}</span>
                                             <div className="category-name">{cat.name}</div>
                                         </div>
                                     ))}
@@ -1008,12 +1353,14 @@ const HomePage = ({ onLogout }) => {
 
                                 <div className="products-grid">
                                     {currentProducts.length > 0 ? (
+                                        console.log(currentProducts),
                                         currentProducts.map(product => (
                                             <ProductCard
                                                 key={product.id}
                                                 product={product}
                                                 onAddToCart={handleAddToCart}
                                                 onViewProduct={handleViewProduct}
+                                                categories={categories}
                                             />
                                         ))
                                     ) : (
@@ -1068,6 +1415,7 @@ const HomePage = ({ onLogout }) => {
                                 items={cartItems}
                                 onValidate={handleOrderValidation}
                                 onCancel={handleOrderCancel}
+                                user={user}
                             />
                         </motion.div>
                     ) : currentView === 'history' ? (
@@ -1100,21 +1448,17 @@ const HomePage = ({ onLogout }) => {
                 </AnimatePresence>
             </div>
 
-            {/* Success Toast */}
+            {/* Toast Notifications */}
             <AnimatePresence>
                 {notification && (
-                    <motion.div
-                        className="notification-toast success"
-                        initial={{ opacity: 0, y: 50 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.5 }}
-                    >
-                        <CheckCircle size={20} />
-                        <span>{notification.message}</span>
-                        <button onClick={() => setNotification(null)} className="close-toast">
-                            <X size={14} />
-                        </button>
-                    </motion.div>
+                    <div style={{ position: 'fixed', top: '20px', right: '20px', zIndex: 9999 }}>
+                        <Toast
+                            message={notification.message}
+                            type={notification.type}
+                            onClose={() => setNotification(null)}
+                            duration={3000}
+                        />
+                    </div>
                 )}
             </AnimatePresence>
 

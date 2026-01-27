@@ -5,3 +5,5 @@ export { productService } from './productService';
 export { orderService } from './orderService';
 export { historyService } from './historyService';
 export { userService } from './userService';
+export { roleService } from './roleService';
+export { bankService } from './bankService';

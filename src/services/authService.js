@@ -57,7 +57,18 @@ export const authService = {
     }
     return response.json();
   },
-
+  async deactivateAccount(token) {
+    const response = await fetch(`${API_BASE_URL}/auth/deactivate`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to deactivate account');
+    }
+    return response.json();
+  },
   async deactivateAccount(token) {
     const response = await fetch(`${API_BASE_URL}/auth/deactivate`, {
       method: 'DELETE',

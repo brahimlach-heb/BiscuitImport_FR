@@ -41,4 +41,60 @@ export const orderService = {
     }
     return response.json();
   },
+
+  async updateOrderStatus(id, status, comment, token) {
+    const response = await fetch(`${API_BASE_URL}/api/orders/${id}/status`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ status, notes: comment }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update order status');
+    }
+    return response.json();
+  },
+
+  async getPaymentsByOrder(orderId, token) {
+    const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}/payments`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to get payments');
+    }
+    return response.json();
+  },
+
+  async addPaymentToOrder(orderId, paymentData, token) {
+    const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}/payments`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(paymentData),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to add payment');
+    }
+    return response.json();
+  },
+
+  async deletePayment(orderId, paymentId, token) {
+    const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}/payments/${paymentId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to delete payment');
+    }
+    return response.json();
+  },
 };

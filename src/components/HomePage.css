@@ -591,7 +591,7 @@ body {
   border-radius: 16px 16px 0 0;
 }
 
-.product-card:hover .product-hover-overlay {
+.product-image-placeholder:hover .product-hover-overlay {
   opacity: 1;
   visibility: visible;
 }
@@ -728,31 +728,10 @@ body {
   color: white;
 }
 
-/* Mobile: Toujours afficher les boutons */
+/* Mobile: Cacher les boutons hover overlay */
 @media (max-width: 768px) {
   .product-hover-overlay {
-    opacity: 1;
-    visibility: visible;
-    background: rgba(0, 0, 0, 0.5);
-  }
-  
-  .product-actions-container {
-    flex-direction: row;
-    gap: 0.75rem;
-  }
-  
-  .product-action-btn {
-    min-width: auto;
-    padding: 0.6rem 1rem;
-    font-size: 0.8rem;
-  }
-  
-  .product-action-btn .btn-text {
     display: none;
-  }
-  
-  .product-action-btn .btn-icon {
-    font-size: 1.3rem;
   }
 }
 

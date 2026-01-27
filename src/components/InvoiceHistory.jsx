@@ -2,74 +2,16 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from 'framer-motion';
 import { FileText, ChevronRight, Clock, CheckCircle2, XCircle, Search, Filter as FilterIcon, ArrowLeft, ChevronLeft, ChevronRight as ChevronRightIcon, Download, Loader2, ShoppingBag } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { getHistory } from '../store/slices/historySlice';
+import { getOrdersByUser, getOrderById } from '../store/slices/orderSlice';
 import './InvoiceHistory.css';
-
-const MOCK_INVOICES = [
-    {
-        id: 'INV-2026-001',
-        date: '2026-01-14',
-        amount: 1250.50,
-        status: 'pending',
-        items: 5,
-        customer: 'Boulangerie Moderne',
-        paymentMethod: 'Virement bancaire',
-        products: [
-            { name: 'Petit Beurre (Lot de 10)', quantity: 2, price: 45.00 },
-            { name: 'Palmito 200g', quantity: 5, price: 12.50 },
-            { name: 'Prince Chocolat 300g', quantity: 10, price: 18.00 },
-            { name: 'Mikado Lait', quantity: 8, price: 15.00 },
-            { name: 'Lu Hello! Cookies', quantity: 4, price: 22.00 }
-        ]
-    },
-    {
-        id: 'INV-2026-002',
-        date: '2026-01-12',
-        amount: 850.00,
-        status: 'paid',
-        items: 3,
-        customer: 'Épicerie Centrale',
-        paymentMethod: 'Carte Bancaire',
-        products: [
-            { name: 'Cookies Granola', quantity: 15, price: 20.00 },
-            { name: 'Thé Menthe Premium', quantity: 5, price: 55.00 },
-            { name: 'Biscuits aux Amandes', quantity: 10, price: 27.50 }
-        ]
-    },
-    {
-        id: 'INV-2025-156',
-        date: '2025-12-28',
-        amount: 3200.75,
-        status: 'paid',
-        items: 12,
-        customer: 'Supermarché Azur',
-        paymentMethod: 'Chèque',
-        products: [
-            { name: 'Assortiment Fêtes', quantity: 20, price: 150.00 },
-            { name: 'Chocolat Noir 70%', quantity: 50, price: 10.00 }
-        ]
-    },
-    {
-        id: 'INV-2025-150',
-        date: '2025-12-20',
-        amount: 450.20,
-        status: 'cancelled',
-        items: 2,
-        customer: 'Café de la Gare',
-        paymentMethod: 'Espèces',
-        products: [
-            { name: 'Spéculoos (Vrac)', quantity: 5, price: 80.00 },
-            { name: 'Sucre Roux 1kg', quantity: 10, price: 5.00 }
-        ]
-    },
-];
 
 const InvoiceHistory = ({ onBack }) => {
     const dispatch = useAppDispatch();
-    const { history = [], loading, error } = useAppSelector(state => state.history);
+    const { orders = [], loading, error } = useAppSelector(state => state.order);
 
     const [selectedInvoice, setSelectedInvoice] = useState(null);
     const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
+    const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
@@ -85,17 +27,36 @@ const InvoiceHistory = ({ onBack }) => {
     const xSpring = useSpring(x, { stiffness: 300, damping: 30 });
     const dragX = useMotionValue(0);
 
-    // Fetch history on mount
-    // Fetch history on mount
-    /* useEffect(() => {
+    // Fetch orders on mount
+    useEffect(() => {
         const token = sessionStorage.getItem('token');
         if (token) {
-            dispatch(getHistory(token));
+            console.log('🔄 InvoiceHistory - Fetching orders...');
+            dispatch(getOrdersByUser(token)).then((result) => {
+                console.log('📦 InvoiceHistory - Orders fetched:', result.payload);
+            });
         }
-    }, [dispatch]); */
+    }, [dispatch]);
 
-    const isDemoMode = history.length === 0 && !loading;
-    const allInvoices = isDemoMode ? MOCK_INVOICES : history;
+    console.log('🏠 InvoiceHistory - orders:', orders);
+    console.log('🏠 InvoiceHistory - loading:', loading);
+    
+    const allInvoices = orders.map(order => ({
+        id: order.order_number || order.id,
+        date: order.created_at,
+        amount: order.total,
+        status: order.status,
+        items: order.total_products || order.lines?.length || 0,
+        customer: order.customer_name,
+        paymentMethod: 'Non spécifié',
+        products: order.lines?.map(line => ({
+            name: line.product?.name || 'Produit inconnu',
+            quantity: line.quantity,
+            price: line.unit_price
+        })) || []
+    }));
+    
+    console.log('📋 InvoiceHistory - allInvoices:', allInvoices);
 
     // Pagination logic
     const totalInvoices = allInvoices.length;
@@ -105,6 +66,42 @@ const InvoiceHistory = ({ onBack }) => {
     const handlePageChange = (page) => {
         setCurrentPage(page);
         window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    // Handler pour charger les détails complets d'une commande
+    const handleInvoiceClick = async (invoice) => {
+        const token = sessionStorage.getItem('token');
+        if (!token) return;
+
+        setIsLoadingDetails(true);
+        console.log('🔍 Loading order details for:', invoice.id);
+
+        try {
+            const result = await dispatch(getOrderById({ id: invoice.id, token }));
+            console.log('✅ Order details loaded:', result.payload);
+
+            if (result.payload) {
+                const order = result.payload;
+                setSelectedInvoice({
+                    id: order.order_number || order.id,
+                    date: order.created_at,
+                    amount: order.total,
+                    status: order.status,
+                    items: order.total_products || order.lines?.length || 0,
+                    customer: order.customer_name,
+                    paymentMethod: 'Non spécifié',
+                    products: order.lines?.map(line => ({
+                        name: line.name || 'Produit inconnu',
+                        quantity: line.quantity,
+                        price: line.unit_price
+                    })) || []
+                });
+            }
+        } catch (error) {
+            console.error('❌ Error loading order details:', error);
+        } finally {
+            setIsLoadingDetails(false);
+        }
     };
 
     // Calculate carousel dimensions
@@ -260,7 +257,7 @@ const InvoiceHistory = ({ onBack }) => {
                     >
                         <ArrowLeft size={20} />
                     </motion.button>
-                    <h2><FileText size={28} style={{ color: 'var(--primary-accent)' }} /> Historique des factures</h2>
+                    <h2><FileText size={28} style={{ color: 'var(--primary-accent)' }} /> Historique des devis</h2>
                 </div>
             </div>
 
@@ -269,6 +266,7 @@ const InvoiceHistory = ({ onBack }) => {
                 className="invoices-list"
                 variants={containerVariants}
                 animate="visible"
+                style={{ width: '100%', maxWidth: '100%', padding: '0 2rem' }}
             >
                 {loading ? (
                     <div className="loading-spinner-container" style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
@@ -283,7 +281,7 @@ const InvoiceHistory = ({ onBack }) => {
                                     className="invoice-item-card"
                                     variants={itemVariants}
                                     layout
-                                    onClick={() => setSelectedInvoice(invoice)}
+                                    onClick={() => handleInvoiceClick(invoice)}
                                 >
                                     <div className="inv-icon">
                                         <FileText size={20} />
@@ -318,7 +316,7 @@ const InvoiceHistory = ({ onBack }) => {
                                 style={{ textAlign: 'center', padding: '3rem 1rem' }}
                             >
                                 <Search size={48} style={{ color: 'var(--text-muted)', marginBottom: '1rem' }} />
-                                <p style={{ color: 'var(--text-main)', fontSize: '1.1rem', marginBottom: '1.5rem' }}>Aucune facture réelle disponible pour le moment.</p>
+                                <p style={{ color: 'var(--text-main)', fontSize: '1.1rem', marginBottom: '1.5rem' }}>Aucun devis réel disponible pour le moment.</p>
                                 <motion.button
                                     onClick={onBack}
                                     whileHover={{ scale: 1.05 }}

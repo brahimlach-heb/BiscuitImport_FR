@@ -4,7 +4,7 @@ import LoginForm from './components/LoginForm';
 import HomePage from './components/HomePage';
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   // Function to handle successful login
   const handleLoginSuccess = () => {

@@ -37,11 +37,48 @@ export const getOrderById = createAsyncThunk(
   }
 );
 
+export const getPaymentsByOrder = createAsyncThunk(
+  'order/getPaymentsByOrder',
+  async ({ orderId, token }, { rejectWithValue }) => {
+    try {
+      const response = await orderService.getPaymentsByOrder(orderId, token);
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+export const addPaymentToOrder = createAsyncThunk(
+  'order/addPaymentToOrder',
+  async ({ orderId, paymentData, token }, { rejectWithValue }) => {
+    try {
+      const response = await orderService.addPaymentToOrder(orderId, paymentData, token);
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+export const deletePayment = createAsyncThunk(
+  'order/deletePayment',
+  async ({ orderId, paymentId, token }, { rejectWithValue }) => {
+    try {
+      const response = await orderService.deletePayment(orderId, paymentId, token);
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
 const orderSlice = createSlice({
   name: 'order',
   initialState: {
     orders: [],
     currentOrder: null,
+    payments: [],
     loading: false,
     error: null,
   },
@@ -88,6 +125,42 @@ const orderSlice = createSlice({
         state.currentOrder = action.payload;
       })
       .addCase(getOrderById.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(getPaymentsByOrder.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getPaymentsByOrder.fulfilled, (state, action) => {
+        state.loading = false;
+        state.payments = action.payload;
+      })
+      .addCase(getPaymentsByOrder.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(addPaymentToOrder.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(addPaymentToOrder.fulfilled, (state, action) => {
+        state.loading = false;
+        state.payments.push(action.payload);
+      })
+      .addCase(addPaymentToOrder.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(deletePayment.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deletePayment.fulfilled, (state, action) => {
+        state.loading = false;
+        state.payments = state.payments.filter(p => p.id !== action.payload.id);
+      })
+      .addCase(deletePayment.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });

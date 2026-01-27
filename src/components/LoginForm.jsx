@@ -11,8 +11,8 @@ const LoginForm = ({ onLoginSuccess }) => {
     const [loading, setLoading] = useState(false);
 
     // Form States
-    const [username, setUsername] = useState('ilham');
-    const [password, setPassword] = useState('ilham123');
+    const [username, setUsername] = useState('b@gmail.com');
+    const [password, setPassword] = useState('string');
     const [email, setEmail] = useState('');
     const [token, setToken] = useState('');
 
@@ -29,19 +29,18 @@ const LoginForm = ({ onLoginSuccess }) => {
         e.preventDefault();
         setLoading(true);
         try {
-            //const data = await authService.login({ email: username, password });
-            //console.log('Login successful:', data);
-           // if (data.data.token) {
-           /*     sessionStorage.setItem('token', data.data.token);
-                sessionStorage.setItem('user', JSON.stringify(data.data.user));
+            const response = await authService.login({ email: username, password });
+            console.log('Login successful:', response);
+            if (response.data.token) {
+                sessionStorage.setItem('token', response.data.token);
+                sessionStorage.setItem('user', JSON.stringify(response.data.user));
                 showToast('Connexion réussie ! Bienvenue.', 'success');
                 setTimeout(() => {
-                    if (onLoginSuccess) onLoginSuccess(data.user);
+                    if (onLoginSuccess) onLoginSuccess(response.data.user);
                 }, 1000);
             } else {
                 showToast('Erreur de connexion : Token non reçu.', 'error');
-            }*/
-           showToast('Connexion réussie ! Bienvenue.', 'success');
+            }
         } catch (error) {
             console.error('Login error:', error);
             showToast(error.message || 'Échec de la connexion.', 'error');

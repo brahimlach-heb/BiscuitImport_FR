@@ -25,6 +25,18 @@ export const createProduct = createAsyncThunk(
   }
 );
 
+export const updateProduct = createAsyncThunk(
+  'product/updateProduct',
+  async ({ id, productData, token }, { rejectWithValue }) => {
+    try {
+      const response = await productService.updateProduct(id, productData, token);
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
 export const getProductById = createAsyncThunk(
   'product/getProductById',
   async ({ id, token }, { rejectWithValue }) => {
@@ -97,9 +109,28 @@ const productSlice = createSlice({
       })
       .addCase(createProduct.fulfilled, (state, action) => {
         state.loading = false;
-        state.products.push(action.payload);
+        if (action.payload) {
+          state.products.push(action.payload);
+        }
       })
       .addCase(createProduct.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(updateProduct.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateProduct.fulfilled, (state, action) => {
+        state.loading = false;
+        if (action.payload) {
+          const index = state.products.findIndex(p => p.id === action.payload.id);
+          if (index !== -1) {
+            state.products[index] = action.payload;
+          }
+        }
+      })
+      .addCase(updateProduct.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
