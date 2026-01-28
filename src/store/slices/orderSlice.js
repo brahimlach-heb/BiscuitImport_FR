@@ -73,6 +73,30 @@ export const deletePayment = createAsyncThunk(
   }
 );
 
+export const updateOrderDiscount = createAsyncThunk(
+  'order/updateOrderDiscount',
+  async ({ orderId, discountData, token }, { rejectWithValue }) => {
+    try {
+      const response = await orderService.updateOrderDiscount(orderId, discountData, token);
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+export const downloadQuote = createAsyncThunk(
+  'order/downloadQuote',
+  async ({ orderId, token }, { rejectWithValue }) => {
+    try {
+      const blob = await orderService.downloadQuote(orderId, token);
+      return { orderId, blob };
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
 const orderSlice = createSlice({
   name: 'order',
   initialState: {
@@ -161,6 +185,25 @@ const orderSlice = createSlice({
         state.payments = state.payments.filter(p => p.id !== action.payload.id);
       })
       .addCase(deletePayment.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(updateOrderDiscount.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateOrderDiscount.fulfilled, (state, action) => {
+        state.loading = false;
+        const updatedOrder = action.payload;
+        const index = state.orders.findIndex(o => o.id === updatedOrder.id);
+        if (index !== -1) {
+          state.orders[index] = updatedOrder;
+        }
+        if (state.currentOrder?.id === updatedOrder.id) {
+          state.currentOrder = updatedOrder;
+        }
+      })
+      .addCase(updateOrderDiscount.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });

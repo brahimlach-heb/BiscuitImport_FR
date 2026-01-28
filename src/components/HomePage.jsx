@@ -23,10 +23,7 @@ const CATEGORIES = [
     { id: 'boisson', name: 'Boisson', icon: '🥤' }
 ];
 
-const FILTERS = {
-    brands: ['Larch', 'Kamara', 'Sweetco'],
-    flavors: ['Amande', 'Chocolat', 'Noir Intense', 'Lait Crémeux', 'Fruits Mélangés', 'Caramel Classique', 'Arabica', 'Vert Nature']
-};
+// FILTERS will be dynamically extracted from products
 
 const FLAVOR_COLORS = {
     'Amande': '#EEDC82', // Buff/Beige
@@ -780,13 +777,13 @@ const HomePage = ({ onLogout }) => {
 
     const toggleBrand = (brand) => {
         setSelectedBrands(prev =>
-            prev.includes(brand) ? prev.filter(b => b !== brand) : [...prev, brand]
+            prev.includes(brand) ? [] : [brand]
         );
     };
 
     const toggleFlavor = (flavor) => {
         setSelectedFlavors(prev =>
-            prev.includes(flavor) ? prev.filter(f => f !== flavor) : [...prev, flavor]
+            prev.includes(flavor) ? [] : [flavor]
         );
     };
 
@@ -932,6 +929,39 @@ const HomePage = ({ onLogout }) => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
+    // Extract unique brands from products
+    const availableBrands = useMemo(() => {
+        const brandsSet = new Set();
+        products.forEach(product => {
+            if (product.brand) {
+                brandsSet.add(product.brand);
+            } else if (product.marque) {
+                brandsSet.add(product.marque);
+            }
+        });
+        return Array.from(brandsSet).sort();
+    }, [products]);
+
+    // Extract unique flavors from products
+    const availableFlavors = useMemo(() => {
+        const flavorsSet = new Set();
+        products.forEach(product => {
+            // Check for flavors array (multi-variant products)
+            if (product.flavors && Array.isArray(product.flavors)) {
+                product.flavors.forEach(flavor => {
+                    if (flavor.name) {
+                        flavorsSet.add(flavor.name);
+                    }
+                });
+            }
+            // Check for single flavor field
+            if (product.flavor) {
+                flavorsSet.add(product.flavor);
+            }
+        });
+        return Array.from(flavorsSet).sort();
+    }, [products]);
+
     // Filtering Logic
     const filteredProducts = useMemo(() => {
         return products.filter(product => {
@@ -942,17 +972,20 @@ const HomePage = ({ onLogout }) => {
             }
 
             // Brand Match (if any selected)
-            if (selectedBrands.length > 0 && !selectedBrands.includes(product.brand)) return false;
+            const productBrand = product.brand || product.marque;
+            if (selectedBrands.length > 0 && !selectedBrands.includes(productBrand)) return false;
 
             // Flavor Match (if any selected)
-            // For multi-variant products, check if any of its variants' flavors match selectedFlavors
             if (selectedFlavors.length > 0) {
-                if (product.variants) {
-                    const hasMatchingVariantFlavor = product.variants.some(variant =>
-                        selectedFlavors.includes(variant.flavor)
+                // For multi-variant products with flavors array
+                if (product.flavors && Array.isArray(product.flavors)) {
+                    const hasMatchingFlavor = product.flavors.some(flavor =>
+                        selectedFlavors.includes(flavor.name)
                     );
-                    if (!hasMatchingVariantFlavor) return false;
-                } else if (!selectedFlavors.includes(product.flavor)) {
+                    if (!hasMatchingFlavor) return false;
+                } else if (product.flavor && !selectedFlavors.includes(product.flavor)) {
+                    return false;
+                } else if (!product.flavor && !product.flavors) {
                     return false;
                 }
             }
@@ -1287,36 +1320,46 @@ const HomePage = ({ onLogout }) => {
 
                                         <div className="filter-group">
                                             <div className="filter-group-title">Marque</div>
-                                            {FILTERS.brands.map(brand => (
-                                                <label key={brand} className="checkbox-label">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedBrands.includes(brand)}
-                                                        onChange={() => toggleBrand(brand)}
-                                                    />
-                                                    <span className="custom-checkbox">
-                                                        {selectedBrands.includes(brand) && <div className="check-dot" style={{ width: 10, height: 10, background: 'white', borderRadius: 2 }} />}
-                                                    </span>
-                                                    {brand}
-                                                </label>
-                                            ))}
+                                            {availableBrands.length > 0 ? (
+                                                availableBrands.map(brand => (
+                                                    <label key={brand} className="checkbox-label">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedBrands.includes(brand)}
+                                                            onChange={() => toggleBrand(brand)}
+                                                            style={{ display: 'none' }}
+                                                        />
+                                                        <span className="custom-checkbox">
+                                                            {selectedBrands.includes(brand) && <div className="check-dot" style={{ width: 10, height: 10, background: 'white', borderRadius: 2 }} />}
+                                                        </span>
+                                                        {brand}
+                                                    </label>
+                                                ))
+                                            ) : (
+                                                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '0.5rem 0' }}>Aucune marque disponible</p>
+                                            )}
                                         </div>
 
                                         <div className="filter-group">
                                             <div className="filter-group-title">Flavours</div>
-                                            {FILTERS.flavors.map(flavor => (
-                                                <label key={flavor} className="checkbox-label">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedFlavors.includes(flavor)}
-                                                        onChange={() => toggleFlavor(flavor)}
-                                                    />
-                                                    <span className="custom-checkbox">
-                                                        {selectedFlavors.includes(flavor) && <div className="check-dot" style={{ width: 10, height: 10, background: 'white', borderRadius: 2 }} />}
-                                                    </span>
-                                                    {flavor}
-                                                </label>
-                                            ))}
+                                            {availableFlavors.length > 0 ? (
+                                                availableFlavors.map(flavor => (
+                                                    <label key={flavor} className="checkbox-label">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedFlavors.includes(flavor)}
+                                                            onChange={() => toggleFlavor(flavor)}
+                                                            style={{ display: 'none' }}
+                                                        />
+                                                        <span className="custom-checkbox">
+                                                            {selectedFlavors.includes(flavor) && <div className="check-dot" style={{ width: 10, height: 10, background: 'white', borderRadius: 2 }} />}
+                                                        </span>
+                                                        {flavor}
+                                                    </label>
+                                                ))
+                                            ) : (
+                                                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '0.5rem 0' }}>Aucune saveur disponible</p>
+                                            )}
                                         </div>
                                     </motion.aside>
                                 )}

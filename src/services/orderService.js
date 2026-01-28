@@ -97,4 +97,34 @@ export const orderService = {
     }
     return response.json();
   },
+
+  async updateOrderDiscount(orderId, discountData, token) {
+    const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}/remise`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(discountData),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update order discount');
+    }
+    return response.json();
+  },
+
+  async downloadQuote(orderId, token) {
+    const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}/devis`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to download quote');
+    }
+    // Retourner le blob pour télécharger le PDF
+    const blob = await response.blob();
+    return blob;
+  },
 };

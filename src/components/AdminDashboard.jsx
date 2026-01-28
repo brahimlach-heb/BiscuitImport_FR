@@ -14,12 +14,13 @@ import {
     deleteCategory
 } from '../store/slices/categorySlice';
 import { getAllUsers } from '../store/slices/userSlice';
-import { getOrdersByUser } from '../store/slices/orderSlice';
+import { getOrdersByUser, updateOrderDiscount } from '../store/slices/orderSlice';
 import {
     getAllRoles,
     createRole,
     updateRole,
-    deleteRole
+    deleteRole,
+    getRoleById
 } from '../store/slices/roleSlice';
 import {
     getAllBanks,
@@ -458,59 +459,11 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
     const dispatch = useAppDispatch();
 
     // Redux state
-    const { user: currentUser } = useAppSelector(state => state.auth);
     const { products: productsState = [], loading: productsLoading, error: productsError } = useAppSelector(state => state.product);
     const { categories: categoriesState = [], loading: categoriesLoading, error: categoriesError } = useAppSelector(state => state.category);
     const { users: usersState = [], loading: usersLoading, error: usersError } = useAppSelector(state => state.user);
     const { orders: ordersState = [], loading: ordersLoading, error: ordersError } = useAppSelector(state => state.order);
     const { roles: rolesState = [], loading: rolesLoading, error: rolesError } = useAppSelector(state => state.role);
-    const { currentRole } = useAppSelector(state => state.role);
-
-    // State for admin verification
-    const [isAdmin, setIsAdmin] = useState(false);
-    
-    // Get role details by ID to check code
-    useEffect(() => {
-        const checkAdminRole = async () => {
-            // Allow access in demo mode (no user)
-            if (!currentUser) {
-                setIsAdmin(true);
-                return;
-            }
-            
-            const token = sessionStorage.getItem('token');
-            if (!token) {
-                setIsAdmin(true); // Demo mode
-                return;
-            }
-            
-            // If user has role_id, fetch role details to get code
-            if (currentUser?.role_id) {
-                try {
-                    await dispatch(getRoleById({ id: currentUser.role_id, token })).unwrap();
-                } catch (error) {
-                    console.error('Error fetching role:', error);
-                }
-            }
-        };
-        
-        checkAdminRole();
-    }, [currentUser, dispatch]);
-    
-    // Update isAdmin when currentRole changes
-    useEffect(() => {
-        if (currentRole) {
-            const adminCheck = currentRole.code === 'ADMIN' || currentRole.name === 'ADMIN';
-            setIsAdmin(adminCheck);
-            console.log('👤 Current User:', currentUser);
-            console.log('📋 Current Role:', currentRole);
-            console.log('🔐 Is Admin:', adminCheck);
-        } else if (currentUser?.role?.code) {
-            // Fallback to existing role data
-            const adminCheck = currentUser.role.code === 'ADMIN' || currentUser.role.name === 'ADMIN';
-            setIsAdmin(adminCheck);
-        }
-    }, [currentRole, currentUser]);
 
     // Combined loading state
     const loading = productsLoading || categoriesLoading || usersLoading || ordersLoading || rolesLoading;
@@ -529,57 +482,9 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
     // Combined error state
     const hasError = productsError || categoriesError || usersError || ordersError || rolesError;
 
-    // Console logs pour afficher les données reçues
-    useEffect(() => {
-        console.log('=== AdminDashboard - Données Redux ===');
-        console.log('📦 Products State:', {
-            data: productsState,
-            count: productsState.length,
-            loading: productsLoading,
-            error: productsError
-        });
-        console.log('📁 Categories State:', {
-            data: categoriesState,
-            count: categoriesState.length,
-            loading: categoriesLoading,
-            error: categoriesError
-        });
-        console.log('👥 Users State:', {
-            data: usersState,
-            count: usersState.length,
-            loading: usersLoading,
-            error: usersError
-        });
-        console.log('🛒 Orders State:', {
-            data: ordersState,
-            count: ordersState.length,
-            loading: ordersLoading,
-            error: ordersError
-        });
-        console.log('📊 Données finales utilisées:', {
-            products: products.length,
-            categories: categories.length,
-            users: users.length,
-            orders: orders.length
-        });
-        console.log('=====================================');
-    }, [productsState, categoriesState, usersState, ordersState, productsLoading, categoriesLoading, usersLoading, ordersLoading]);
+    // Data received tracking removed
 
-    // Display error messages
-    useEffect(() => {
-        if (productsError) {
-            console.error('❌ Products error:', productsError);
-        }
-        if (categoriesError) {
-            console.error('❌ Categories error:', categoriesError);
-        }
-        if (usersError) {
-            console.error('❌ Users error:', usersError);
-        }
-        if (ordersError) {
-            console.error('❌ Orders error:', ordersError);
-        }
-    }, [productsError, categoriesError, usersError, ordersError]);
+    // Error display removed
 
     const [activeTab, setActiveTab] = useState('orders'); // Changed from 'overview' to 'orders'
     const [searchQuery, setSearchQuery] = useState('');
@@ -624,6 +529,8 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
     const [newPayment, setNewPayment] = useState({ type: 'cash', bank_code: '', amount: '', payment_date: '', comment: '' });
     const [statusChangeModal, setStatusChangeModal] = useState({ show: false, orderId: null, newStatus: null });
     const [statusComment, setStatusComment] = useState('');
+    const [discountModal, setDiscountModal] = useState({ show: false, order: null });
+    const [discountData, setDiscountData] = useState({ discount_amount: '', discount_type: 'percentage' });
 
     const [editingCategory, setEditingCategory] = useState(null);
 
@@ -643,63 +550,93 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
     const [isRoleLoading, setIsRoleLoading] = useState(false);
     const [isBankLoading, setIsBankLoading] = useState(false);
 
+    // User role state for access control
+    const [userRole, setUserRole] = useState(null);
+    const [isLoadingRole, setIsLoadingRole] = useState(true);
+
+    // Fetch user role on mount
+    useEffect(() => {
+        const token = sessionStorage.getItem('token');
+        const userStr = sessionStorage.getItem('user');
+        
+        if (token && userStr) {
+            try {
+                const user = JSON.parse(userStr);
+                const roleId = user.role_id || user.role?.id;
+                
+                if (roleId) {
+                    dispatch(getRoleById({ id: roleId, token }))
+                        .unwrap()
+                        .then((role) => {
+                            setUserRole(role?.data || role);
+                            console.log('🔐 User Role:', role?.data?.code, '| Is ADMIN:',role?.data?.code === 'ADMIN');
+                            setIsLoadingRole(false);
+                        })
+                        .catch((error) => {
+                            setIsLoadingRole(false);
+                        });
+                } else {
+                    setIsLoadingRole(false);
+                }
+            } catch (error) {
+                setIsLoadingRole(false);
+            }
+        } else {
+            setIsLoadingRole(false);
+        }
+    }, [dispatch]);
+
     // Fetch data using Redux thunks
     useEffect(() => {
         const token = sessionStorage.getItem('token');
-        console.log('🔄 AdminDashboard - Chargement des données...', { token: token ? 'Token présent' : 'Token absent' });
 
         if (token) {
-            console.log('📡 Dispatch des actions Redux...');
-            dispatch(getAllCategories(token)).then((result) => {
-                console.log('✅ Categories loaded:', result);
-            });
-            dispatch(getAllRoles(token)).then((result) => {
-                console.log('✅ Roles loaded:', result);
-            });
-            dispatch(getAllBanks(token)).then((result) => {
-                console.log('✅ Banks loaded:', result);
-            });
-        } else {
-            console.warn('⚠️ Aucun token trouvé, impossible de charger les données');
+            dispatch(getAllCategories(token));
+            
+            // Load roles only if user is ADMIN
+            if (userRole?.code === 'ADMIN') {
+                dispatch(getAllRoles(token));
+                dispatch(getAllBanks(token));
+            }
         }
-    }, [dispatch]);
+    }, [dispatch, userRole]);
 
     // Load data when activeTab changes
     useEffect(() => {
         const token = sessionStorage.getItem('token');
         if (!token) return;
 
-        console.log('🔄 Chargement des données pour l\'onglet:', activeTab);
-
         switch(activeTab) {
             case 'products':
-                dispatch(getAllProducts({ category: null, token })).then((result) => {
-                    console.log('✅ Products loaded for tab:', result);
-                });
+                dispatch(getAllProducts({ category: null, token }));
                 break;
             case 'users':
-                dispatch(getAllUsers(token)).then((result) => {
-                    console.log('✅ Users loaded for tab:', result);
-                });
+                // Only load users if user is ADMIN
+                if (userRole?.code === 'ADMIN') {
+                    dispatch(getAllUsers(token));
+                }
                 break;
             case 'orders':
-                dispatch(getOrdersByUser(token)).then((result) => {
-                    console.log('✅ Orders loaded for tab:', result);
-                });
+                dispatch(getOrdersByUser(token));
                 break;
             case 'banks':
-                dispatch(getAllBanks(token));
+                // Only load banks if user is ADMIN
+                if (userRole?.code === 'ADMIN') {
+                    dispatch(getAllBanks(token));
+                }
                 break;
             case 'overview':
                 // Load all data for overview
                 dispatch(getAllProducts({ category: null, token }));
-                dispatch(getAllUsers(token));
+                if (userRole?.code === 'ADMIN') {
+                    dispatch(getAllUsers(token));
+                }
                 dispatch(getOrdersByUser(token));
                 break;
             default:
                 break;
         }
-    }, [activeTab, dispatch]);
+    }, [activeTab, dispatch, userRole]);
 
     // Form data state
     const [newUser, setNewUser] = useState({
@@ -785,7 +722,6 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
             setStatusChangeModal({ show: false, orderId: null, newStatus: null });
             setStatusComment('');
         } catch (error) {
-            console.error('❌ Erreur lors de la mise à jour du statut:', error);
             showToast('Erreur lors de la mise à jour du statut', 'error');
         }
     };
@@ -795,10 +731,8 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
         try {
             // Charger les détails complets de la commande
             const fullOrder = await orderService.getOrderById(order.id, token);
-            console.log('👁️ Commande chargée pour consultation:', fullOrder);
             setViewingOrder(fullOrder);
         } catch (error) {
-            console.error('❌ Erreur lors du chargement de la commande:', error);
             showToast('Erreur lors du chargement des détails de la commande', 'error');
         }
     };
@@ -809,10 +743,6 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
         try {
             // Charger les détails complets du produit
             const fullProduct = await productService.getProductById(product.id, token);
-            console.log('👁️ Produit chargé pour consultation:', fullProduct);
-            console.log('🔍 Flavors:', fullProduct.flavors);
-            console.log('🔍 Role prices:', fullProduct.role_prices);
-            console.log('🔍 Price roles:', fullProduct.price_roles);
             
             // L'API peut retourner role_prices ou price_roles
             const rolePrices = fullProduct.role_prices || fullProduct.price_roles || [];
@@ -824,7 +754,6 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                 flavors: fullProduct.flavors || []
             });
         } catch (error) {
-            console.error('❌ Erreur lors du chargement du produit:', error);
             showToast('Erreur lors du chargement du produit', 'error');
         } finally {
             setIsProductLoading(false);
@@ -837,13 +766,9 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
         try {
             // Charger les détails complets du produit
             const fullProduct = await productService.getProductById(product.id, token);
-            console.log('📦 Produit chargé pour édition:', fullProduct);
-            console.log('🔍 Role prices:', fullProduct.role_prices);
-            console.log('🔍 Price roles:', fullProduct.price_roles);
             
             // L'API peut retourner role_prices ou price_roles
             const rolePrices = fullProduct.role_prices || fullProduct.price_roles || [];
-            console.log('✅ Role prices finaux:', rolePrices);
             
             setEditProduct({
                 id: fullProduct.id,
@@ -861,7 +786,6 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
             });
             setIsEditingProduct(fullProduct);
         } catch (error) {
-            console.error('❌ Erreur lors du chargement du produit:', error);
             showToast('Erreur lors du chargement du produit');
         } finally {
             setIsProductLoading(false);
@@ -883,7 +807,6 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
             await dispatch(getAllUsers(token));
             showToast('Utilisateur supprimé avec succès');
         } catch (error) {
-            console.error('Failed to delete user:', error);
             showToast('Erreur lors de la suppression de l\'utilisateur', 'error');
         }
     };
@@ -903,7 +826,6 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
             await dispatch(getAllProducts({ category: null, token }));
             showToast('Produit supprimé avec succès');
         } catch (error) {
-            console.error('Failed to delete product:', error);
             showToast('Erreur lors de la suppression du produit', 'error');
         }
     };
@@ -917,20 +839,15 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
         setDeletingCategory(null);
 
         const token = sessionStorage.getItem('token');
-        console.log('🗑️ Suppression de la catégorie ID:', id);
         try {
             const result = await dispatch(deleteCategory({ id, token }));
-            console.log('📤 Résultat deleteCategory:', result);
 
             if (deleteCategory.fulfilled.match(result)) {
-                console.log('✅ Catégorie supprimée avec succès');
                 showToast('Catégorie supprimée avec succès');
             } else if (deleteCategory.rejected.match(result)) {
-                console.error('❌ Erreur lors de la suppression:', result.payload);
                 showToast('Erreur lors de la suppression de la catégorie', 'error');
             }
         } catch (error) {
-            console.error('❌ Failed to delete category:', error);
             showToast('Erreur lors de la suppression de la catégorie', 'error');
         }
     };
@@ -993,7 +910,6 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                     is_active: newUser.is_active,
                     deactivated_at: newUser.deactivated_at
                 };
-                console.log('➕ Création d\'un nouvel utilisateur:', userData);
                 const user = await authService.register(userData);
                 // Recharger la liste des utilisateurs après création
                 const token = sessionStorage.getItem('token');
@@ -1015,7 +931,6 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                 });
                 setUserErrors({});
             } catch (error) {
-                console.error('Failed to add user:', error);
                 showToast('Erreur lors de l\'ajout de l\'utilisateur', 'error');
             } finally {
                 setIsUserLoading(false);
@@ -1041,7 +956,6 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                 if (newUser.password && newUser.password.length >= 6) {
                     userData.password = newUser.password;
                 }
-                console.log('✏️ Mise à jour de l\'utilisateur:', editingUser, userData);
                 const token = sessionStorage.getItem('token');
                 await userService.updateUser(editingUser, userData, token);
                 // Recharger la liste des utilisateurs après mise à jour
@@ -1063,7 +977,6 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                 });
                 setUserErrors({});
             } catch (error) {
-                console.error('Failed to update user:', error);
                 showToast('Erreur lors de la modification de l\'utilisateur', 'error');
             } finally {
                 setIsUserLoading(false);
@@ -1080,24 +993,19 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                 emoji: newCategory.emoji,
                 is_active: newCategory.is_active
             };
-            console.log('➕ Création d\'une nouvelle catégorie:', categoryData);
             setIsCategoryLoading(true);
             try {
                 const result = await dispatch(createCategory({ categoryData, token }));
-                console.log('📤 Résultat createCategory:', result);
 
                 if (createCategory.fulfilled.match(result)) {
-                    console.log('✅ Catégorie créée avec succès:', result.payload);
                     showToast('Catégorie créée avec succès');
                     setIsAddingCategory(false);
                     setNewCategory({ name: '', emoji: '📦', description: '', is_active: true });
                     setCategoryErrors({});
                 } else {
-                    console.error('❌ Erreur lors de la création de la catégorie:', result.payload);
                     showToast('Erreur lors de l\'ajout de la catégorie', 'error');
                 }
             } catch (error) {
-                console.error('❌ Failed to add category:', error);
                 showToast('Erreur lors de l\'ajout de la catégorie', 'error');
             } finally {
                 setIsCategoryLoading(false);
@@ -1114,14 +1022,11 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                 emoji: newCategory.emoji,
                 is_active: newCategory.is_active
             };
-            console.log('✏️ Mise à jour de la catégorie ID:', editingCategory, 'avec les données:', categoryData);
             setIsCategoryLoading(true);
             try {
                 const result = await dispatch(updateCategory({ id: editingCategory, categoryData, token }));
-                console.log('📤 Résultat updateCategory:', result);
 
                 if (updateCategory.fulfilled.match(result)) {
-                    console.log('✅ Catégorie mise à jour avec succès:', result.payload);
                     showToast('Catégorie modifiée avec succès');
                     setEditingCategory(null);
                     setNewCategory({ name: '', emoji: '📦', description: '', is_active: true });
@@ -1129,11 +1034,9 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                     // Recharger les catégories
                     await dispatch(getAllCategories(token));
                 } else {
-                    console.error('❌ Erreur lors de la mise à jour de la catégorie:', result.payload);
                     showToast('Erreur lors de la modification de la catégorie', 'error');
                 }
             } catch (error) {
-                console.error('❌ Failed to update category:', error);
                 showToast('Erreur lors de la modification de la catégorie', 'error');
             } finally {
                 setIsCategoryLoading(false);
@@ -1161,24 +1064,19 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                 flavors: newProduct.flavors,
                 price_roles: newProduct.role_prices
             };
-            console.log('➕ Création d\'un nouveau produit:', productData);
             setIsProductLoading(true);
             try {
                 const result = await dispatch(createProduct({ productData, token }));
-                console.log('📤 Résultat createProduct:', result);
 
                 if (createProduct.fulfilled.match(result)) {
-                    console.log('✅ Produit créé avec succès:', result.payload);
                     showToast('Produit créé avec succès');
                     setIsAddingProduct(false);
                     setNewProduct({ name: '', category: '', brand: '', price: '', stock: '', packageUnit: '', description: '', ingredients: '', is_active: true, flavors: [], role_prices: [] });
                     setProductErrors({});
                 } else {
-                    console.error('❌ Erreur lors de la création du produit:', result.payload);
                     showToast('Erreur lors de l\'ajout du produit', 'error');
                 }
             } catch (error) {
-                console.error('❌ Failed to add product:', error);
                 showToast('Erreur lors de l\'ajout du produit', 'error');
             } finally {
                 setIsProductLoading(false);
@@ -1202,14 +1100,11 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                 flavors: editProduct.flavors,
                 price_roles: editProduct.role_prices
             };
-            console.log('🔄 Mise à jour du produit:', editProduct.id, productData);
             setIsProductLoading(true);
             try {
                 const result = await dispatch(updateProduct({ id: editProduct.id, productData, token }));
-                console.log('📤 Résultat updateProduct:', result);
 
                 if (updateProduct.fulfilled.match(result)) {
-                    console.log('✅ Produit mis à jour avec succès:', result.payload);
                     showToast('Produit mis à jour avec succès');
                     setIsEditingProduct(null);
                     setEditProduct({ name: '', category: '', brand: '', price: '', stock: '', packageUnit: '', description: '', ingredients: '', is_active: true, flavors: [], role_prices: [] });
@@ -1217,11 +1112,9 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                     // Recharger la liste des produits
                     await dispatch(getAllProducts({ category: null, token }));
                 } else {
-                    console.error('❌ Erreur lors de la mise à jour du produit:', result.payload);
                     showToast('Erreur lors de la mise à jour du produit', 'error');
                 }
             } catch (error) {
-                console.error('❌ Failed to update product:', error);
                 showToast('Erreur lors de la mise à jour du produit', 'error');
             } finally {
                 setIsProductLoading(false);
@@ -2074,6 +1967,15 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                         <CreditCard size={16} />
                                         <span>Paiement</span>
                                     </button>
+                                    <button 
+                                        className="order-action-btn" 
+                                        onClick={() => handleOpenDiscountModal(order)}
+                                        title="Modifier la remise"
+                                        style={{ borderColor: '#f59e0b', color: '#f59e0b' }}
+                                    >
+                                        <Edit2 size={16} />
+                                        <span>Remise</span>
+                                    </button>
                                 </div>
                             </motion.div>
                         );
@@ -2213,6 +2115,14 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                             >
                                                 <CreditCard size={16} />
                                             </button>
+                                            <button 
+                                                className="icon-btn" 
+                                                title="Modifier la remise"
+                                                onClick={() => handleOpenDiscountModal(order)}
+                                                style={{ borderColor: '#f59e0b', color: '#f59e0b' }}
+                                            >
+                                                <Edit2 size={16} />
+                                            </button>
                                         </td>
                                     </tr>
                                     );
@@ -2308,24 +2218,19 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                 label: newRole.label,
                 is_active: newRole.is_active
             };
-            console.log('➕ Création d\'un nouveau rôle:', roleData);
             setIsRoleLoading(true);
             try {
                 const result = await dispatch(createRole({ roleData, token }));
-                console.log('📤 Résultat createRole:', result);
 
                 if (createRole.fulfilled.match(result)) {
-                    console.log('✅ Rôle créé avec succès:', result.payload);
                     setIsAddingRole(false);
                     setNewRole({ code: '', label: '', is_active: true });
                     setRoleErrors({});
                     showToast('Rôle ajouté avec succès');
                 } else {
-                    console.error('❌ Erreur lors de la création du rôle:', result.payload);
                     showToast('Erreur lors de l\'ajout du rôle', 'error');
                 }
             } catch (error) {
-                console.error('❌ Failed to add role:', error);
                 showToast('Erreur lors de l\'ajout du rôle', 'error');
             } finally {
                 setIsRoleLoading(false);
@@ -2341,24 +2246,19 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                 label: newRole.label,
                 is_active: newRole.is_active
             };
-            console.log('✏️ Modification du rôle ID:', editingRole.id, roleData);
             setIsRoleLoading(true);
             try {
                 const result = await dispatch(updateRole({ id: editingRole.id, roleData, token }));
-                console.log('📤 Résultat updateRole:', result);
 
                 if (updateRole.fulfilled.match(result)) {
-                    console.log('✅ Rôle modifié avec succès:', result.payload);
                     setEditingRole(null);
                     setNewRole({ code: '', label: '', is_active: true });
                     setRoleErrors({});
                     showToast('Rôle modifié avec succès');
                 } else {
-                    console.error('❌ Erreur lors de la modification:', result.payload);
                     showToast('Erreur lors de la modification du rôle');
                 }
             } catch (error) {
-                console.error('❌ Failed to update role:', error);
                 showToast('Erreur lors de la modification du rôle', 'error');
             } finally {
                 setIsRoleLoading(false);
@@ -2375,20 +2275,15 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
         setDeletingRole(null);
 
         const token = sessionStorage.getItem('token');
-        console.log('🗑️ Suppression du rôle ID:', id);
         try {
             const result = await dispatch(deleteRole({ id, token }));
-            console.log('📤 Résultat deleteRole:', result);
 
             if (deleteRole.fulfilled.match(result)) {
-                console.log('✅ Rôle supprimé avec succès');
                 showToast('Rôle supprimé avec succès');
             } else if (deleteRole.rejected.match(result)) {
-                console.error('❌ Erreur lors de la suppression:', result.payload);
                 showToast('Erreur lors de la suppression du rôle');
             }
         } catch (error) {
-            console.error('❌ Failed to delete role:', error);
             showToast('Erreur lors de la suppression du rôle', 'error');
         }
     };
@@ -2403,18 +2298,14 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
             label: role.label,
             is_active: !role.is_active
         };
-        console.log('🔄 Toggle statut du rôle ID:', id, roleData);
         try {
             const result = await dispatch(updateRole({ id, roleData, token }));
             if (updateRole.fulfilled.match(result)) {
-                console.log('✅ Statut du rôle modifié');
                 showToast('Statut du rôle modifié');
             } else {
-                console.error('❌ Erreur lors du changement de statut:', result.payload);
                 showToast('Erreur lors du changement de statut', 'error');
             }
         } catch (error) {
-            console.error('❌ Failed to toggle role status:', error);
             showToast('Erreur lors du changement de statut', 'error');
         }
     };
@@ -2443,7 +2334,6 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
             }));
             setPaymentMethods(formattedPayments);
         } catch (error) {
-            console.error('❌ Erreur lors du chargement des paiements:', error);
         }
     };
 
@@ -2464,7 +2354,6 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
             // Recharger les commandes
             dispatch(getOrdersByUser(token));
         } catch (error) {
-            console.error('❌ Erreur lors de la suppression du paiement:', error);
             showToast('Erreur lors de la suppression du paiement', 'error');
         }
     };
@@ -2477,6 +2366,38 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
             dispatch(getAllBanks(token));
         }
         await loadPayments(order.id);
+    };
+
+    const handleOpenDiscountModal = (order) => {
+        setDiscountModal({ show: true, order });
+        setDiscountData({
+            discount_amount: order.discount_amount || '',
+            discount_type: 'percentage'
+        });
+    };
+
+    const handleUpdateDiscount = async () => {
+        const token = sessionStorage.getItem('token');
+        const orderId = discountModal.order.id;
+        
+        try {
+            const payload = {
+                remise: parseFloat(discountData.discount_amount) || 0
+            };
+
+            await dispatch(updateOrderDiscount({ orderId, discountData: payload, token })).unwrap();
+            
+            // Rafraîchir les commandes
+            await dispatch(getOrdersByUser(token));
+            
+            // Fermer la modal
+            setDiscountModal({ show: false, order: null });
+            setDiscountData({ discount_amount: '', discount_type: 'percentage' });
+            
+            showToast('Remise mise à jour avec succès', 'success');
+        } catch (error) {
+            showToast('Erreur lors de la mise à jour de la remise', 'error');
+        }
     };
 
     // Bank validation
@@ -2508,7 +2429,6 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                     showToast('Erreur lors de l\'ajout de la banque', 'error');
                 }
             } catch (error) {
-                console.error('❌ Erreur lors de l\'ajout de la banque:', error);
                 showToast('Erreur lors de l\'ajout de la banque', 'error');
             } finally {
                 setIsBankLoading(false);
@@ -2535,7 +2455,6 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                     showToast('Erreur lors de la modification de la banque', 'error');
                 }
             } catch (error) {
-                console.error('❌ Erreur lors de la modification de la banque:', error);
                 showToast('Erreur lors de la modification de la banque', 'error');
             } finally {
                 setIsBankLoading(false);
@@ -2554,7 +2473,6 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                 showToast('Erreur lors de la suppression de la banque', 'error');
             }
         } catch (error) {
-            console.error('❌ Erreur lors de la suppression de la banque:', error);
             showToast('Erreur lors de la suppression de la banque', 'error');
         }
     };
@@ -2768,30 +2686,36 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                     >
                         <BarChart3 size={20} /> Reporting
                     </button>
-                    <button
-                        className={`nav-item ${activeTab === 'users' ? 'active' : ''}`}
-                        onClick={() => { setActiveTab('users'); setIsSidebarOpen(false); }}
-                    >
-                        <UsersIcon size={20} /> Utilisateurs
-                    </button>
+                    {userRole?.code === 'ADMIN' && (
+                        <button
+                            className={`nav-item ${activeTab === 'users' ? 'active' : ''}`}
+                            onClick={() => { setActiveTab('users'); setIsSidebarOpen(false); }}
+                        >
+                            <UsersIcon size={20} /> Utilisateurs
+                        </button>
+                    )}
                     <button
                         className={`nav-item ${activeTab === 'categories' ? 'active' : ''}`}
                         onClick={() => { setActiveTab('categories'); setIsSidebarOpen(false); }}
                     >
                         <Tag size={20} /> Catégories
                     </button>
-                    <button
-                        className={`nav-item ${activeTab === 'roles' ? 'active' : ''}`}
-                        onClick={() => { setActiveTab('roles'); setIsSidebarOpen(false); }}
-                    >
-                        <Shield size={20} /> Rôles
-                    </button>
-                    <button
-                        className={`nav-item ${activeTab === 'banks' ? 'active' : ''}`}
-                        onClick={() => { setActiveTab('banks'); setIsSidebarOpen(false); }}
-                    >
-                        <Banknote size={20} /> Banques
-                    </button>
+                    {userRole?.code === 'ADMIN' && (
+                        <button
+                            className={`nav-item ${activeTab === 'roles' ? 'active' : ''}`}
+                            onClick={() => { setActiveTab('roles'); setIsSidebarOpen(false); }}
+                        >
+                            <Shield size={20} /> Rôles
+                        </button>
+                    )}
+                    {userRole?.code === 'ADMIN' && (
+                        <button
+                            className={`nav-item ${activeTab === 'banks' ? 'active' : ''}`}
+                            onClick={() => { setActiveTab('banks'); setIsSidebarOpen(false); }}
+                        >
+                            <Banknote size={20} /> Banques
+                        </button>
+                    )}
                     <button
                         className={`nav-item ${activeTab === 'products' ? 'active' : ''}`}
                         onClick={() => { setActiveTab('products'); setIsSidebarOpen(false); }}
@@ -2837,10 +2761,10 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                         >
                             {activeTab === 'overview' && renderOverview()}
                             {activeTab === 'reporting' && renderReporting()}
-                            {activeTab === 'users' && renderUsers()}
+                            {activeTab === 'users' && userRole?.code === 'ADMIN' && renderUsers()}
                             {activeTab === 'categories' && renderCategories()}
-                            {activeTab === 'roles' && renderRoles()}
-                            {activeTab === 'banks' && renderBanks()}
+                            {activeTab === 'roles' && userRole?.code === 'ADMIN' && renderRoles()}
+                            {activeTab === 'banks' && userRole?.code === 'ADMIN' && renderBanks()}
                             {activeTab === 'products' && renderProducts()}
                             {activeTab === 'orders' && renderOrders()}
                         </motion.div>
@@ -4574,6 +4498,22 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                     </div>
                                 </div>
                                 <div className="form-group">
+                                    <label>Remise (%)</label>
+                                    <div style={{
+                                        padding: '12px',
+                                        background: 'var(--bg-main)',
+                                        borderRadius: '8px',
+                                        fontWeight: '600',
+                                        fontSize: '1rem',
+                                        color: '#ef4444'
+                                    }}>
+                                        {viewingOrder.remise ? 
+                                            `${parseFloat(viewingOrder.remise).toFixed(2)} %` 
+                                            : '0.00 %'
+                                        }
+                                    </div>
+                                </div>
+                                <div className="form-group">
                                     <label>Montant total</label>
                                     <div style={{
                                         padding: '12px',
@@ -5109,13 +5049,110 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                         // Recharger les commandes pour mettre à jour l'affichage
                                         dispatch(getOrdersByUser(token));
                                     } catch (error) {
-                                        console.error('❌ Erreur lors de l\'enregistrement des paiements:', error);
                                         showToast('Erreur lors de l\'enregistrement des paiements', 'error');
                                     }
                                 }}
                                 disabled={paymentMethods.filter(p => !p.isExisting).length === 0}
                             >
                                 <Save size={18} /> Enregistrer {paymentMethods.filter(p => !p.isExisting).length > 0 && `(${paymentMethods.filter(p => !p.isExisting).length})`}
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* Modal de modification de remise */}
+            {discountModal.show && discountModal.order && (
+                <div className="admin-overlay" onClick={() => setDiscountModal({ show: false, order: null })}>
+                    <motion.div
+                        className="admin-modal"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="modal-header">
+                            <h2>
+                                <Edit2 size={22} style={{ display: 'inline', marginRight: '10px' }} />
+                                Modifier la remise - Commande #{discountModal.order.id}
+                            </h2>
+                            <button className="close-btn" onClick={() => setDiscountModal({ show: false, order: null })}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="form-group">
+                                <label>
+                                    Montant de la remise jusqu'à 100 (%)
+                                </label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    max="100"
+                                    placeholder="0.00 %"
+                                    value={discountData.discount_amount}
+                                    onChange={(e) => setDiscountData({ ...discountData, discount_amount: e.target.value })}
+                                    style={{
+                                        width: '100%',
+                                        padding: '12px',
+                                        borderRadius: '8px',
+                                        border: '1px solid var(--border-color)',
+                                        background: 'var(--bg-card)',
+                                        fontWeight: '600',
+                                        fontSize: '1.1rem'
+                                    }}
+                                />
+                            </div>
+                            <div style={{
+                                padding: '12px',
+                                background: 'var(--bg-main)',
+                                borderRadius: '8px',
+                                marginTop: '15px'
+                            }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                    <span style={{ color: 'var(--text-muted)' }}>Sous-total:</span>
+                                    <span style={{ fontWeight: '600' }}>{parseFloat(discountModal.order.subtotal || 0).toFixed(2)} DH</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                    <span style={{ color: 'var(--text-muted)' }}>Remise:</span>
+                                    <span style={{ fontWeight: '600', color: '#ef4444' }}>
+                                        {(() => {
+                                            const amount = parseFloat(discountData.discount_amount) || 0;
+                                            const subtotal = parseFloat(discountModal.order.subtotal || 0);
+                                            return `- ${((subtotal * amount) / 100).toFixed(2)} DH (${amount}%)`;
+                                        })()}
+                                    </span>
+                                </div>
+                                <div style={{ 
+                                    display: 'flex', 
+                                    justifyContent: 'space-between', 
+                                    paddingTop: '8px',
+                                    borderTop: '2px solid var(--border-color)'
+                                }}>
+                                    <span style={{ fontWeight: '700', fontSize: '1.1rem' }}>Total:</span>
+                                    <span style={{ fontWeight: '700', fontSize: '1.3rem', color: '#10b981' }}>
+                                        {(() => {
+                                            const amount = parseFloat(discountData.discount_amount) || 0;
+                                            const subtotal = parseFloat(discountModal.order.subtotal || 0);
+                                            const discount = (subtotal * amount) / 100;
+                                            return Math.max(0, subtotal - discount).toFixed(2);
+                                        })()} DH
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button 
+                                className="cancel-pill-btn" 
+                                onClick={() => setDiscountModal({ show: false, order: null })}
+                            >
+                                Annuler
+                            </button>
+                            <button 
+                                className="save-pill-btn"
+                                onClick={handleUpdateDiscount}
+                            >
+                                <Save size={18} /> Enregistrer
                             </button>
                         </div>
                     </motion.div>

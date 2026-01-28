@@ -3,6 +3,7 @@ import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from
 import { FileText, ChevronRight, Clock, CheckCircle2, XCircle, Search, Filter as FilterIcon, ArrowLeft, ChevronLeft, ChevronRight as ChevronRightIcon, Download, Loader2, ShoppingBag } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { getOrdersByUser, getOrderById } from '../store/slices/orderSlice';
+import { downloadQuote } from '../store/slices/orderSlice';
 import './InvoiceHistory.css';
 
 const InvoiceHistory = ({ onBack }) => {
@@ -45,7 +46,7 @@ const InvoiceHistory = ({ onBack }) => {
         id: order.order_number || order.id,
         date: order.created_at,
         amount: order.total,
-        status: order.status,
+        status: order.status?.toUpperCase() || 'PENDING',
         items: order.total_products || order.lines?.length || 0,
         customer: order.customer_name,
         paymentMethod: 'Non spécifié',
@@ -86,7 +87,7 @@ const InvoiceHistory = ({ onBack }) => {
                     id: order.order_number || order.id,
                     date: order.created_at,
                     amount: order.total,
-                    status: order.status,
+                    status: order.status?.toUpperCase() || 'PENDING',
                     items: order.total_products || order.lines?.length || 0,
                     customer: order.customer_name,
                     paymentMethod: 'Non spécifié',
@@ -193,15 +194,28 @@ const InvoiceHistory = ({ onBack }) => {
         if (isDownloadingPDF) return;
 
         setIsDownloadingPDF(true);
+        const token = sessionStorage.getItem('token');
 
-        // Simulate PDF generation/download
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
-        // Here you would typically trigger the actual PDF download
-        // For now, we'll just simulate it
-        console.log(`Downloading PDF for invoice ${selectedInvoice.id}`);
-
-        setIsDownloadingPDF(false);
+        try {
+            const result = await dispatch(downloadQuote({ orderId: selectedInvoice.id, token })).unwrap();
+            
+            // Créer un lien de téléchargement
+            const url = window.URL.createObjectURL(result.blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `devis-INV-${selectedInvoice.id}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            console.log(`✅ PDF downloaded for invoice ${selectedInvoice.id}`);
+        } catch (error) {
+            console.error('❌ Error downloading PDF:', error);
+            alert('Erreur lors du téléchargement du PDF');
+        } finally {
+            setIsDownloadingPDF(false);
+        }
     };
 
     const containerVariants = {
@@ -287,7 +301,7 @@ const InvoiceHistory = ({ onBack }) => {
                                         <FileText size={20} />
                                     </div>
                                     <div className="inv-info">
-                                        <h4>{invoice.id}</h4>
+                                        <h4>INV-{invoice.id}</h4>
                                         <p>{invoice.items} articles • {invoice.customer}</p>
                                     </div>
                                     <div className="inv-date">
@@ -298,9 +312,13 @@ const InvoiceHistory = ({ onBack }) => {
                                         {invoice.amount} DH
                                     </div>
                                     <div className={`inv-status status-${invoice.status}`}>
-                                        {invoice.status === 'pending' && <Clock size={14} />}
-                                        {invoice.status === 'paid' && <CheckCircle2 size={14} />}
-                                        {invoice.status === 'cancelled' && <XCircle size={14} />}
+                                        {invoice.status === 'PENDING' && <><Clock size={14} /> <span>En attente</span></>}
+                                        {invoice.status === 'CONFIRMED' && <><CheckCircle2 size={14} /> <span>Confirmé</span></>}
+                                        {invoice.status === 'PAID' && <><CheckCircle2 size={14} /> <span>Payé</span></>}
+                                        {invoice.status === 'PROCESSING' && <><Clock size={14} /> <span>En traitement</span></>}
+                                        {invoice.status === 'SHIPPED' && <><CheckCircle2 size={14} /> <span>Expédié</span></>}
+                                        {invoice.status === 'DELIVERED' && <><CheckCircle2 size={14} /> <span>Livré</span></>}
+                                        {invoice.status === 'CANCELLED' && <><XCircle size={14} /> <span>Annulé</span></>}
                                     </div>
                                     <div className="inv-action">
                                         <ChevronRight size={20} />
@@ -452,12 +470,16 @@ const InvoiceHistory = ({ onBack }) => {
                                 <div className="header-content">
                                     <div className="invoice-badge">
                                         <FileText size={24} />
-                                        <span>{selectedInvoice.id}</span>
+                                        <span>INV-{selectedInvoice.id}</span>
                                     </div>
                                     <div className={`status-badge status-${selectedInvoice.status}`}>
-                                        {selectedInvoice.status === 'pending' && <Clock size={16} />}
-                                        {selectedInvoice.status === 'paid' && <CheckCircle2 size={16} />}
-                                        {selectedInvoice.status === 'cancelled' && <XCircle size={16} />}
+                                        {selectedInvoice.status === 'PENDING' && <><Clock size={16} /> <span>En attente</span></>}
+                                        {selectedInvoice.status === 'CONFIRMED' && <><CheckCircle2 size={16} /> <span>Confirmé</span></>}
+                                        {selectedInvoice.status === 'PAID' && <><CheckCircle2 size={16} /> <span>Payé</span></>}
+                                        {selectedInvoice.status === 'PROCESSING' && <><Clock size={16} /> <span>En traitement</span></>}
+                                        {selectedInvoice.status === 'SHIPPED' && <><CheckCircle2 size={16} /> <span>Expédié</span></>}
+                                        {selectedInvoice.status === 'DELIVERED' && <><CheckCircle2 size={16} /> <span>Livré</span></>}
+                                        {selectedInvoice.status === 'CANCELLED' && <><XCircle size={16} /> <span>Annulé</span></>}
                                     </div>
                                 </div>
                                 <button className="close-modal-btn" onClick={() => setSelectedInvoice(null)}>
