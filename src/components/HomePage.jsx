@@ -1,12 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Filter, X, ChevronRight, ShoppingBag, User, LogOut, Settings, Sun, Moon, Eye, ShoppingCart, Trash2, Plus, Minus, Facebook, Instagram, Linkedin, FileText, CheckCircle, Loader2, Zap } from 'lucide-react';
+import { Filter, X, ChevronRight, ShoppingBag, User, LogOut, Settings, Sun, Moon, Eye, ShoppingCart, Trash2, Plus, Minus, Facebook, Instagram, Linkedin, FileText, CheckCircle, Loader2, Zap, MessageSquare } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { getAllProducts } from '../store/slices/productSlice';
 import { getAllCategories } from '../store/slices/categorySlice';
 import { getAllRoles } from '../store/slices/roleSlice';
 import { getProfile } from '../store/slices/authSlice';
 import { orderService } from '../services/orderService';
+import { FaWhatsapp } from "react-icons/fa";
 import LogisticsBackground from './LogisticsBackground';
 import InvoicePage from './InvoicePage';
 import InvoiceHistory from './InvoiceHistory';
@@ -95,7 +96,7 @@ const ProductDetailModal = ({ product, isOpen, onClose, onAddToCart, categories 
     const [quantity, setQuantity] = useState(1);
     const [selectedFlavor, setSelectedFlavor] = useState(null);
     const [imageError, setImageError] = useState(false);
-    
+
     // Get category name from category_id
     const getCategoryName = () => {
         if (product.category_id && categories.length > 0) {
@@ -172,8 +173,8 @@ const ProductDetailModal = ({ product, isOpen, onClose, onAddToCart, categories 
     const imagePlaceholderStyle = selectedFlavor
         ? { backgroundColor: selectedFlavor.color }
         : product.flavors && product.flavors.length > 0
-        ? { backgroundColor: product.flavors[0].color }
-        : { backgroundColor: FLAVOR_COLORS[product.flavor] || '#e0e0e0' };
+            ? { backgroundColor: product.flavors[0].color }
+            : { backgroundColor: FLAVOR_COLORS[product.flavor] || '#e0e0e0' };
 
     const handleAdd = () => {
         onAddToCart(null, { ...product, quantityToAdd: quantity });
@@ -199,21 +200,21 @@ const ProductDetailModal = ({ product, isOpen, onClose, onAddToCart, categories 
                     <div className="detail-image-col">
                         <div className="detail-image-placeholder" style={imagePlaceholderStyle}>
                             {productImage && !imageError ? (
-                                <img 
-                                    src={productImage} 
+                                <img
+                                    src={productImage}
                                     alt=""
                                     onError={() => setImageError(true)}
-                                    style={{ 
-                                        width: '100%', 
-                                        height: '100%', 
+                                    style={{
+                                        width: '100%',
+                                        height: '100%',
                                         objectFit: 'cover',
                                         borderRadius: '12px 12px 0 0'
-                                    }} 
+                                    }}
                                 />
                             ) : (
-                                <span style={{ 
-                                    color: 'white', 
-                                    fontWeight: '700', 
+                                <span style={{
+                                    color: 'white',
+                                    fontWeight: '700',
                                     fontSize: '1.5rem',
                                     textShadow: '0 2px 8px rgba(0,0,0,0.3)',
                                     textAlign: 'center',
@@ -224,9 +225,9 @@ const ProductDetailModal = ({ product, isOpen, onClose, onAddToCart, categories 
                                     width: '100%',
                                     height: '100%'
                                 }}>
-                                    {selectedFlavor ? selectedFlavor.name : 
-                                     product.flavors && product.flavors.length > 0 ? product.flavors[0].name : 
-                                     product.flavor || 'Image'}
+                                    {selectedFlavor ? selectedFlavor.name :
+                                        product.flavors && product.flavors.length > 0 ? product.flavors[0].name :
+                                            product.flavor || 'Image'}
                                 </span>
                             )}
                         </div>
@@ -365,10 +366,19 @@ const ProductDetailModal = ({ product, isOpen, onClose, onAddToCart, categories 
                                     <button onClick={() => setQuantity(q => Math.max(1, q - 1))}>-</button>
                                     <input
                                         type="number"
+                                        min="1"
+                                        max={product.stock || product.quantity_in_stock || undefined}
                                         value={quantity}
-                                        onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value) || 1;
+                                            const maxStock = product.stock || product.quantity_in_stock;
+                                            setQuantity(Math.max(1, maxStock ? Math.min(val, maxStock) : val));
+                                        }}
                                     />
-                                    <button onClick={() => setQuantity(q => q + 1)}>+</button>
+                                    <button onClick={() => setQuantity(q => {
+                                        const maxStock = product.stock || product.quantity_in_stock;
+                                        return maxStock ? Math.min(q + 1, maxStock) : q + 1;
+                                    })}>+</button>
                                 </div>
                                 <button className="add-to-cart-btn-large" onClick={handleAdd}>
                                     <ShoppingCart size={20} />
@@ -399,13 +409,13 @@ const ProductCard = ({ product, onAddToCart, onViewProduct, categories = [] }) =
                 return category.emoji || category.icon || '❔';
             }
         }
-        
+
         // Try to find in mock CATEGORIES using category field (for demo mode)
         if (product.category) {
             const mockCategory = CATEGORIES.find(cat => cat.id === product.category);
             if (mockCategory?.icon) return mockCategory.icon;
         }
-        
+
         // Default fallback
         return '❔';
     };
@@ -458,8 +468,8 @@ const ProductCard = ({ product, onAddToCart, onViewProduct, categories = [] }) =
     const imagePlaceholderStyle = selectedFlavor
         ? { backgroundColor: selectedFlavor.color }
         : product.flavors && product.flavors.length > 0
-        ? { backgroundColor: product.flavors[0].color }
-        : { backgroundColor: '#e0e0e0' };
+            ? { backgroundColor: product.flavors[0].color }
+            : { backgroundColor: '#e0e0e0' };
 
     const handleAdd = (e) => {
         e.stopPropagation();
@@ -469,32 +479,43 @@ const ProductCard = ({ product, onAddToCart, onViewProduct, categories = [] }) =
     const handleQuantityChange = (e) => {
         let val = parseInt(e.target.value, 10);
         if (isNaN(val) || val < 1) val = 1;
+        const maxStock = product.stock || product.quantity_in_stock;
+        if (maxStock && val > maxStock) {
+            val = maxStock;
+        }
         setQuantity(val);
     };
 
     const adjustQty = (delta) => {
-        setQuantity(prev => Math.max(1, prev + delta));
+        const maxStock = product.stock || product.quantity_in_stock;
+        setQuantity(prev => {
+            const newVal = prev + delta;
+            if (maxStock) {
+                return Math.max(1, Math.min(newVal, maxStock));
+            }
+            return Math.max(1, newVal);
+        });
     };
 
     return (
         <div className="product-card">
             <div className="product-image-placeholder" style={imagePlaceholderStyle}>
                 {productImage && !imageError ? (
-                    <img 
-                        src={productImage} 
+                    <img
+                        src={productImage}
                         alt=""
                         onError={() => setImageError(true)}
-                        style={{ 
-                            width: '100%', 
-                            height: '100%', 
+                        style={{
+                            width: '100%',
+                            height: '100%',
                             objectFit: 'cover',
                             borderRadius: '8px 8px 0 0'
-                        }} 
+                        }}
                     />
                 ) : (
-                    <span style={{ 
-                        color: 'white', 
-                        fontWeight: '600', 
+                    <span style={{
+                        color: 'white',
+                        fontWeight: '600',
                         fontSize: '1.1rem',
                         textShadow: '0 2px 4px rgba(0,0,0,0.3)',
                         textAlign: 'center',
@@ -505,8 +526,8 @@ const ProductCard = ({ product, onAddToCart, onViewProduct, categories = [] }) =
                         width: '100%',
                         height: '100%'
                     }}>
-                        {selectedFlavor ? selectedFlavor.name : 
-                         product.flavors && product.flavors.length > 0 ? product.flavors[0].name : 'Image'}
+                        {selectedFlavor ? selectedFlavor.name :
+                            product.flavors && product.flavors.length > 0 ? product.flavors[0].name : 'Image'}
                     </span>
                 )}
 
@@ -572,10 +593,10 @@ const ProductCard = ({ product, onAddToCart, onViewProduct, categories = [] }) =
                             />
                         ) : null}
                         <span className="package-unit" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                           
+
                             <span>{product.packageUnit || product.stock || ''}</span>
                         </span>
-                         <span style={{ fontSize: '0.9rem' }}>{getCategoryIcon()}</span>
+                        <span style={{ fontSize: '0.9rem' }}>{getCategoryIcon()}</span>
                     </div>
                 </div>
 
@@ -591,6 +612,7 @@ const ProductCard = ({ product, onAddToCart, onViewProduct, categories = [] }) =
                         <input
                             type="number"
                             min="1"
+                            max={product.stock || product.quantity_in_stock || undefined}
                             value={quantity}
                             onChange={handleQuantityChange}
                             onClick={(e) => e.stopPropagation()}
@@ -754,13 +776,13 @@ const HomePage = ({ onLogout }) => {
     const handleLogout = () => {
         // Vider le panier
         setCartItems([]);
-        
+
         // Vider le sessionStorage
         sessionStorage.clear();
-        
+
         // Vider le localStorage
         localStorage.clear();
-        
+
         // Appeler la fonction de déconnexion parent
         if (onLogout) {
             onLogout();
@@ -801,6 +823,24 @@ const HomePage = ({ onLogout }) => {
         if (e) e.stopPropagation(); // Make event optional for modal call
         const quantityToAdd = product.quantityToAdd || 1;
 
+        // Vérifier le stock disponible
+        const stockAvailable = product.stock || product.quantity_in_stock;
+
+        if (stockAvailable !== undefined && stockAvailable !== null) {
+            const existing = cartItems.find(item => item.id === product.id);
+            const currentQuantityInCart = existing ? existing.quantity : 0;
+            const totalQuantity = currentQuantityInCart + quantityToAdd;
+
+            if (totalQuantity > stockAvailable) {
+                // Afficher un message d'erreur
+                setNotification({
+                    type: 'error',
+                    message: `Stock insuffisant ! Disponible: ${stockAvailable} unités. Dans le panier: ${currentQuantityInCart} unités.`
+                });
+                return; // Ne pas ajouter au panier
+            }
+        }
+
         setCartItems(prev => {
             const existing = prev.find(item => item.id === product.id);
             if (existing) {
@@ -819,15 +859,36 @@ const HomePage = ({ onLogout }) => {
         setCartItems(prev => prev.map(item => {
             if (item.id === id) {
                 let newQty;
+                // Vérifier le stock disponible
+                const stockAvailable = item.stock || item.quantity_in_stock;
+
                 // If it's a direct value (from input change)
                 if (typeof valueOrDelta === 'object' && valueOrDelta.target) {
                     const value = parseInt(valueOrDelta.target.value, 10);
                     // Allow typing (if NaN or 0, just use what's typed but ensure state validity eventually)
                     // For logic: if invalid/negative, default to 1 or keep current if empty string handling needed
                     newQty = isNaN(value) || value < 1 ? 1 : value;
+
+                    // Vérifier le stock si disponible
+                    if (stockAvailable !== undefined && stockAvailable !== null && newQty > stockAvailable) {
+                        setNotification({
+                            type: 'error',
+                            message: `Stock insuffisant ! Maximum disponible: ${stockAvailable} unités.`
+                        });
+                        newQty = stockAvailable;
+                    }
                 } else {
                     // It's a delta (+1 or -1)
                     newQty = Math.max(1, item.quantity + valueOrDelta);
+
+                    // Vérifier le stock si disponible
+                    if (stockAvailable !== undefined && stockAvailable !== null && newQty > stockAvailable) {
+                        setNotification({
+                            type: 'error',
+                            message: `Stock insuffisant ! Maximum disponible: ${stockAvailable} unités.`
+                        });
+                        newQty = stockAvailable;
+                    }
                 }
                 return { ...item, quantity: newQty };
             }
@@ -854,7 +915,7 @@ const HomePage = ({ onLogout }) => {
 
     const handleOrderValidation = async (customerData) => {
         const token = sessionStorage.getItem('token');
-        
+
         if (!token) {
             setNotification({
                 type: 'error',
@@ -897,7 +958,7 @@ const HomePage = ({ onLogout }) => {
             };
 
             console.log('📦 Envoi de la commande:', orderData);
-            
+
             // Envoyer la commande à l'API
             const response = await orderService.createOrder(orderData, token);
             console.log('✅ Commande créée:', response);
@@ -1089,6 +1150,7 @@ const HomePage = ({ onLogout }) => {
                                                         <input
                                                             type="number"
                                                             min="1"
+                                                            max={item.stock || item.quantity_in_stock || undefined}
                                                             value={item.quantity}
                                                             onChange={(e) => updateQuantity(item.id, e)}
                                                             className="qty-input"
@@ -1146,7 +1208,11 @@ const HomePage = ({ onLogout }) => {
                     }}
                     style={{ cursor: 'pointer' }}
                 >
-                    AMS <span className="brand-red">FOOD</span>
+                    <img
+                        src={theme === 'light' ? '/lightmode_logo.png' : '/darkmode_logo.png'}
+                        alt="AMS FOOD Logo"
+                        style={{ height: '32px', objectFit: 'contain' }}
+                    />
                 </div>
                 <div className="header-actions">
                     {/* Cart in Header */}
@@ -1242,7 +1308,7 @@ const HomePage = ({ onLogout }) => {
                                             <span>Mes Devis</span>
                                         </div>
                                         {userData.pendingInvoices > 0 && (
-                                            <span className="facture-badge pulse">{console.log("userData:",userData)}</span>
+                                            <span className="facture-badge pulse">{console.log("userData:", userData)}</span>
                                         )}
                                     </div>
 
@@ -1509,7 +1575,13 @@ const HomePage = ({ onLogout }) => {
             <footer className="main-footer">
                 <div className="footer-content">
                     <div className="footer-left">
-                        <div className="footer-brand">AMS <span className="brand-red">FOOD</span></div>
+                        <div className="footer-brand">
+                            <img
+                                src={theme === 'light' ? '/lightmode_logo.png' : '/darkmode_logo.png'}
+                                alt="AMS FOOD Logo"
+                                style={{ height: '24px', objectFit: 'contain' }}
+                            />
+                        </div>
                         <p className="footer-copyright">© 2026 AMS FOOD. Tous droits réservés.</p>
                     </div>
 
@@ -1523,9 +1595,24 @@ const HomePage = ({ onLogout }) => {
 
                     <div className="footer-right">
                         <div className="social-icons">
-                            <a href="#" aria-label="Facebook"><Facebook size={18} /></a>
                             <a href="#" aria-label="Instagram"><Instagram size={18} /></a>
-                            <a href="#" aria-label="LinkedIn"><Linkedin size={18} /></a>
+                            <a
+                                href="https://wa.me/212600028348"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label="WhatsApp"
+                                onMouseEnter={(e) => {
+                                    const icon = e.currentTarget.querySelector('svg');
+                                    if (icon) icon.style.color = '#25D366';
+                                }}
+                                onMouseLeave={(e) => {
+                                    const icon = e.currentTarget.querySelector('svg');
+                                    if (icon) icon.style.color = '#888';
+                                }}
+                            >
+                                <FaWhatsapp size={18} color="#888" style={{ transition: 'color 0.3s ease' }} />
+                            </a>
+
                         </div>
                     </div>
                 </div>

@@ -127,4 +127,18 @@ export const orderService = {
     const blob = await response.blob();
     return blob;
   },
+
+  async deleteOrder(orderId, token) {
+    const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to delete order');
+    }
+    return response.json();
+  },
 };

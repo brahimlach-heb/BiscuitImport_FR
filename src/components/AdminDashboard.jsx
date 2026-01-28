@@ -549,6 +549,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
     const [isProductLoading, setIsProductLoading] = useState(false);
     const [isRoleLoading, setIsRoleLoading] = useState(false);
     const [isBankLoading, setIsBankLoading] = useState(false);
+    const [isSavingPayment, setIsSavingPayment] = useState(false);
 
     // User role state for access control
     const [userRole, setUserRole] = useState(null);
@@ -1689,8 +1690,24 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                     <td className="price-cell">{product.price.toFixed(2)} DH</td>
                                     <td>
                                         <div className="stock-indicator">
-                                            <div className="stock-bar"><div className="fill" style={{ width: '75%' }}></div></div>
-                                            <span className="stock-count">{product.stock} units</span>
+                                            <div className="stock-bar">
+                                                <div 
+                                                    className="fill" 
+                                                    style={{ 
+                                                        width: `${Math.min(100, (product.stock / 100) * 100)}%`,
+                                                        background: product.stock < 20 ? '#ef4444' : product.stock <= 80 ? '#f59e0b' : '#22c55e'
+                                                    }}
+                                                ></div>
+                                            </div>
+                                            <span 
+                                                className="stock-count" 
+                                                style={{
+                                                    color: product.stock < 20 ? '#ef4444' : product.stock <= 80 ? '#f59e0b' : '#22c55e',
+                                                    fontWeight: '600'
+                                                }}
+                                            >
+                                                {product.stock} units
+                                            </span>
                                         </div>
                                     </td>
                                     <td className="actions-cell">
@@ -1963,6 +1980,10 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                         className="order-action-btn secondary" 
                                         onClick={() => handleOpenPaymentModal(order)}
                                         title="Méthodes de paiement"
+                                        style={{ 
+                                            borderColor: (order.amount_paid >= order.total) ? '#22c55e' : '#ef4444',
+                                            color: (order.amount_paid >= order.total) ? '#22c55e' : '#ef4444'
+                                        }}
                                     >
                                         <CreditCard size={16} />
                                         <span>Paiement</span>
@@ -2111,7 +2132,10 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                                 className="icon-btn" 
                                                 title="Méthodes de paiement"
                                                 onClick={() => handleOpenPaymentModal(order)}
-                                                style={{ borderColor: '#10b981', color: '#10b981' }}
+                                                style={{ 
+                                                    borderColor: (order.amount_paid >= order.total) ? '#22c55e' : '#ef4444',
+                                                    color: (order.amount_paid >= order.total) ? '#22c55e' : '#ef4444'
+                                                }}
                                             >
                                                 <CreditCard size={16} />
                                             </button>
@@ -5024,6 +5048,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                         return;
                                     }
                                     
+                                    setIsSavingPayment(true);
                                     try {
                                         // Envoyer chaque nouvelle méthode de paiement au backend
                                         for (const payment of newPaymentsToSave) {
@@ -5050,11 +5075,22 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                         dispatch(getOrdersByUser(token));
                                     } catch (error) {
                                         showToast('Erreur lors de l\'enregistrement des paiements', 'error');
+                                    } finally {
+                                        setIsSavingPayment(false);
                                     }
                                 }}
-                                disabled={paymentMethods.filter(p => !p.isExisting).length === 0}
+                                disabled={paymentMethods.filter(p => !p.isExisting).length === 0 || isSavingPayment}
                             >
-                                <Save size={18} /> Enregistrer {paymentMethods.filter(p => !p.isExisting).length > 0 && `(${paymentMethods.filter(p => !p.isExisting).length})`}
+                                {isSavingPayment ? (
+                                    <>
+                                        <Loader2 size={18} className="spinning" style={{ animation: 'spin 1s linear infinite' }} />
+                                        Enregistrement...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Save size={18} /> Enregistrer {paymentMethods.filter(p => !p.isExisting).length > 0 && `(${paymentMethods.filter(p => !p.isExisting).length})`}
+                                    </>
+                                )}
                             </button>
                         </div>
                     </motion.div>

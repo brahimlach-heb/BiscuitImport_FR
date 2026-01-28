@@ -49,6 +49,18 @@ export const getPaymentsByOrder = createAsyncThunk(
   }
 );
 
+export const deleteOrder = createAsyncThunk(
+  'order/deleteOrder',
+  async ({ orderId, token }, { rejectWithValue }) => {
+    try {
+      const response = await orderService.deleteOrder(orderId, token);
+      return { orderId, response };
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
 export const addPaymentToOrder = createAsyncThunk(
   'order/addPaymentToOrder',
   async ({ orderId, paymentData, token }, { rejectWithValue }) => {
@@ -205,8 +217,23 @@ const orderSlice = createSlice({
       })
       .addCase(updateOrderDiscount.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
-      });
+        state.error = action.payload;      })
+      .addCase(deleteOrder.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteOrder.fulfilled, (state, action) => {
+        state.loading = false;
+        // Supprimer la commande de la liste
+        state.orders = state.orders.filter(order => order.id !== action.payload.orderId && order.order_number !== action.payload.orderId);
+        // Réinitialiser currentOrder si c'est celle qui a été supprimée
+        if (state.currentOrder?.id === action.payload.orderId || state.currentOrder?.order_number === action.payload.orderId) {
+          state.currentOrder = null;
+        }
+      })
+      .addCase(deleteOrder.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;      });
   },
 });
 

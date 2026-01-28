@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from 'framer-motion';
-import { FileText, ChevronRight, Clock, CheckCircle2, XCircle, Search, Filter as FilterIcon, ArrowLeft, ChevronLeft, ChevronRight as ChevronRightIcon, Download, Loader2, ShoppingBag } from 'lucide-react';
+import { FileText, ChevronRight, Clock, CheckCircle2, XCircle, Search, Filter as FilterIcon, ArrowLeft, ChevronLeft, ChevronRight as ChevronRightIcon, Download, Loader2, ShoppingBag, Trash2, AlertTriangle } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { getOrdersByUser, getOrderById } from '../store/slices/orderSlice';
+import { getOrdersByUser, getOrderById, deleteOrder } from '../store/slices/orderSlice';
 import { downloadQuote } from '../store/slices/orderSlice';
 import './InvoiceHistory.css';
 
@@ -13,6 +13,11 @@ const InvoiceHistory = ({ onBack }) => {
     const [selectedInvoice, setSelectedInvoice] = useState(null);
     const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
     const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    // Filter state
+    const [statusFilter, setStatusFilter] = useState('ALL');
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
@@ -59,15 +64,37 @@ const InvoiceHistory = ({ onBack }) => {
     
     console.log('📋 InvoiceHistory - allInvoices:', allInvoices);
 
+    // Filter invoices by status
+    const filteredInvoices = statusFilter === 'ALL' 
+        ? allInvoices 
+        : allInvoices.filter(invoice => invoice.status === statusFilter);
+
     // Pagination logic
-    const totalInvoices = allInvoices.length;
+    const totalInvoices = filteredInvoices.length;
     const totalPages = Math.ceil(totalInvoices / itemsPerPage);
-    const paginatedInvoices = allInvoices.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+    const paginatedInvoices = filteredInvoices.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     const handlePageChange = (page) => {
         setCurrentPage(page);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
+
+    // Reset to first page when filter changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [statusFilter]);
+
+    // Status filter options with counts
+    const statusOptions = [
+        { value: 'ALL', label: 'Tous', count: allInvoices.length },
+        { value: 'PENDING', label: 'En attente', count: allInvoices.filter(inv => inv.status === 'PENDING').length },
+        { value: 'CONFIRMED', label: 'Confirmé', count: allInvoices.filter(inv => inv.status === 'CONFIRMED').length },
+        { value: 'PAID', label: 'Payé', count: allInvoices.filter(inv => inv.status === 'PAID').length },
+        { value: 'PROCESSING', label: 'En traitement', count: allInvoices.filter(inv => inv.status === 'PROCESSING').length },
+        { value: 'SHIPPED', label: 'Expédié', count: allInvoices.filter(inv => inv.status === 'SHIPPED').length },
+        { value: 'DELIVERED', label: 'Livré', count: allInvoices.filter(inv => inv.status === 'DELIVERED').length },
+        { value: 'CANCELLED', label: 'Annulé', count: allInvoices.filter(inv => inv.status === 'CANCELLED').length }
+    ].filter(option => option.value === 'ALL' || option.count > 0);
 
     // Handler pour charger les détails complets d'une commande
     const handleInvoiceClick = async (invoice) => {
@@ -218,6 +245,32 @@ const InvoiceHistory = ({ onBack }) => {
         }
     };
 
+    // Handle delete order
+    const handleDeleteOrder = async () => {
+        if (isDeleting) return;
+
+        setIsDeleting(true);
+        const token = sessionStorage.getItem('token');
+
+        try {
+            await dispatch(deleteOrder({ orderId: selectedInvoice.id, token })).unwrap();
+            
+            console.log(`✅ Order ${selectedInvoice.id} deleted`);
+            
+            // Fermer les modals et recharger les commandes
+            setSelectedInvoice(null);
+            setShowDeleteConfirm(false);
+            
+            // Recharger la liste des commandes
+            await dispatch(getOrdersByUser(token));
+        } catch (error) {
+            console.error('❌ Error deleting order:', error);
+            alert(error || 'Erreur lors de la suppression du devis');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     const containerVariants = {
         hidden: { opacity: 0 },
         visible: {
@@ -274,6 +327,81 @@ const InvoiceHistory = ({ onBack }) => {
                     <h2><FileText size={28} style={{ color: 'var(--primary-accent)' }} /> Historique des devis</h2>
                 </div>
             </div>
+
+            {/* Status Filter Section */}
+            <motion.div
+                className="status-filter-section"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.2 }}
+                style={{
+                    padding: '1rem 2rem',
+                    marginBottom: '1.5rem'
+                }}
+            >
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    flexWrap: 'wrap'
+                }}>
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        color: 'var(--text-main)',
+                        fontWeight: 600
+                    }}>
+                        <FilterIcon size={18} style={{ color: 'var(--primary-accent)' }} />
+                        <span>Filtrer par statut:</span>
+                    </div>
+                    <div style={{
+                        display: 'flex',
+                        gap: '0.5rem',
+                        flexWrap: 'wrap'
+                    }}>
+                        {statusOptions.map((option) => (
+                            <motion.button
+                                key={option.value}
+                                onClick={() => setStatusFilter(option.value)}
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                style={{
+                                    padding: '8px 16px',
+                                    borderRadius: '20px',
+                                    border: statusFilter === option.value 
+                                        ? '2px solid var(--primary-accent)' 
+                                        : '1px solid var(--border-color)',
+                                    background: statusFilter === option.value 
+                                        ? 'var(--primary-accent)' 
+                                        : 'var(--bg-secondary)',
+                                    color: statusFilter === option.value ? 'white' : 'var(--text-main)',
+                                    cursor: 'pointer',
+                                    fontWeight: statusFilter === option.value ? 600 : 500,
+                                    fontSize: '0.9rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    transition: 'all 0.2s ease'
+                                }}
+                            >
+                                <span>{option.label}</span>
+                                <span style={{
+                                    background: statusFilter === option.value 
+                                        ? 'rgba(255,255,255,0.2)' 
+                                        : 'var(--bg-tertiary)',
+                                    padding: '2px 8px',
+                                    borderRadius: '10px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600
+                                }}>
+                                    {option.count}
+                                </span>
+                            </motion.button>
+                        ))}
+                    </div>
+                </div>
+            </motion.div>
 
 
             <motion.div
@@ -689,19 +817,54 @@ const InvoiceHistory = ({ onBack }) => {
                                 <div className="totals-breakdown">
                                     <div className="totals-row">
                                         <span className="label">Sous-total HT</span>
-                                        <span className="amount">{(selectedInvoice.amount / 1.2).toFixed(2)} DH</span>
+                                        <span className="amount">{selectedInvoice.amount.toFixed(2)} DH</span>
                                     </div>
                                     <div className="totals-row">
                                         <span className="label">TVA (20%)</span>
-                                        <span className="amount">{(selectedInvoice.amount - (selectedInvoice.amount / 1.2)).toFixed(2)} DH</span>
+                                        <span className="amount">{(selectedInvoice.amount * 0.2).toFixed(2)} DH</span>
                                     </div>
                                     <div className="totals-row total-row">
                                         <span className="label">Total TTC</span>
-                                        <span className="amount">{selectedInvoice.amount.toFixed(2)} DH</span>
+                                        <span className="amount">{(selectedInvoice.amount * 1.2).toFixed(2)} DH</span>
                                     </div>
                                 </div>
 
-                                <div className="action-buttons">
+                                <div className="action-buttons" style={{
+                                    display: 'flex',
+                                    gap: '1rem',
+                                    flexWrap: 'wrap',
+                                    justifyContent: 'center'
+                                }}>
+                                    {selectedInvoice.status === 'PENDING' && (
+                                        <motion.button
+                                            className="delete-order-btn"
+                                            onClick={() => setShowDeleteConfirm(true)}
+                                            disabled={isDeleting}
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
+                                            style={{
+                                                background: '#ef4444',
+                                                color: 'white',
+                                                border: 'none',
+                                                padding: '14px 24px',
+                                                borderRadius: '12px',
+                                                cursor: 'pointer',
+                                                fontWeight: 600,
+                                                fontSize: '1rem',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '10px',
+                                                boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)',
+                                                transition: 'all 0.3s ease',
+                                                minWidth: '180px',
+                                                justifyContent: 'center'
+                                            }}
+                                        >
+                                            <Trash2 size={20} />
+                                            <span>Supprimer</span>
+                                        </motion.button>
+                                    )}
+
                                     <motion.button
                                         className={`pdf-download-btn ${isDownloadingPDF ? 'downloading' : ''}`}
                                         onClick={handleDownloadPDF}
@@ -741,6 +904,253 @@ const InvoiceHistory = ({ onBack }) => {
                                     </motion.button>
                                 </div>
                             </motion.div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Delete Confirmation Modal */}
+            <AnimatePresence>
+                {showDeleteConfirm && (
+                    <motion.div
+                        className="delete-confirm-overlay"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => !isDeleting && setShowDeleteConfirm(false)}
+                        style={{
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: 'rgba(0, 0, 0, 0.7)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 10000,
+                            backdropFilter: 'blur(8px)'
+                        }}
+                    >
+                        <motion.div
+                            className="delete-confirm-modal"
+                            initial={{ scale: 0.8, opacity: 0, y: 30 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.8, opacity: 0, y: 30 }}
+                            transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                                background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+                                borderRadius: '24px',
+                                padding: '2.5rem',
+                                maxWidth: '480px',
+                                width: '90%',
+                                boxShadow: '0 25px 80px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+                                border: '2px solid rgba(239, 68, 68, 0.2)',
+                                position: 'relative',
+                                overflow: 'hidden'
+                            }}
+                        >
+                            {/* Decorative elements */}
+                            <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ delay: 0.2, type: 'spring' }}
+                                style={{
+                                    position: 'absolute',
+                                    top: '-50px',
+                                    right: '-50px',
+                                    width: '150px',
+                                    height: '150px',
+                                    borderRadius: '50%',
+                                    background: 'radial-gradient(circle, rgba(239, 68, 68, 0.15) 0%, transparent 70%)',
+                                    pointerEvents: 'none'
+                                }}
+                            />
+                            <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ delay: 0.3, type: 'spring' }}
+                                style={{
+                                    position: 'absolute',
+                                    bottom: '-30px',
+                                    left: '-30px',
+                                    width: '100px',
+                                    height: '100px',
+                                    borderRadius: '50%',
+                                    background: 'radial-gradient(circle, rgba(239, 68, 68, 0.1) 0%, transparent 70%)',
+                                    pointerEvents: 'none'
+                                }}
+                            />
+
+                            <div style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                gap: '1.5rem',
+                                textAlign: 'center',
+                                position: 'relative',
+                                zIndex: 1
+                            }}>
+                                {/* Icon with animation */}
+                                <motion.div
+                                    initial={{ scale: 0, rotate: -180 }}
+                                    animate={{ scale: 1, rotate: 0 }}
+                                    transition={{ delay: 0.1, type: 'spring', stiffness: 200 }}
+                                    style={{
+                                        width: '90px',
+                                        height: '90px',
+                                        borderRadius: '50%',
+                                        background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.05) 100%)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        boxShadow: '0 8px 32px rgba(239, 68, 68, 0.3), inset 0 0 0 2px rgba(239, 68, 68, 0.2)',
+                                        position: 'relative'
+                                    }}
+                                >
+                                    <motion.div
+                                        animate={{ rotate: [0, 10, -10, 0] }}
+                                        transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 2 }}
+                                    >
+                                        <AlertTriangle size={45} style={{ color: '#ef4444', filter: 'drop-shadow(0 2px 8px rgba(239, 68, 68, 0.4))' }} />
+                                    </motion.div>
+                                </motion.div>
+
+                                {/* Text content */}
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.2 }}
+                                >
+                                    <h3 style={{
+                                        margin: 0,
+                                        marginBottom: '0.75rem',
+                                        fontSize: '1.75rem',
+                                        color: 'var(--text-main)',
+                                        fontWeight: 700,
+                                        letterSpacing: '-0.5px'
+                                    }}>
+                                        ⚠️ Attention !
+                                    </h3>
+                                    <p style={{
+                                        margin: 0,
+                                        marginBottom: '0.5rem',
+                                        color: 'var(--text-muted)',
+                                        fontSize: '1.05rem',
+                                        lineHeight: '1.6'
+                                    }}>
+                                        Vous êtes sur le point de supprimer définitivement
+                                    </p>
+                                    <p style={{
+                                        margin: 0,
+                                        padding: '0.75rem 1rem',
+                                        background: 'rgba(239, 68, 68, 0.1)',
+                                        borderRadius: '12px',
+                                        border: '1px solid rgba(239, 68, 68, 0.2)'
+                                    }}>
+                                        <strong style={{ 
+                                            color: '#ef4444', 
+                                            fontSize: '1.1rem',
+                                            fontWeight: 700
+                                        }}>
+                                            Devis INV-{selectedInvoice?.id}
+                                        </strong>
+                                    </p>
+                                    <p style={{
+                                        margin: 0,
+                                        marginTop: '0.75rem',
+                                        color: 'var(--text-muted)',
+                                        fontSize: '0.95rem',
+                                        fontStyle: 'italic'
+                                    }}>
+                                        ⚡ Cette action est <strong>irréversible</strong>
+                                    </p>
+                                </motion.div>
+
+                                {/* Action buttons */}
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.3 }}
+                                    style={{
+                                        display: 'flex',
+                                        gap: '1rem',
+                                        width: '100%',
+                                        marginTop: '0.5rem'
+                                    }}
+                                >
+                                    <motion.button
+                                        onClick={() => setShowDeleteConfirm(false)}
+                                        disabled={isDeleting}
+                                        whileHover={{ scale: 1.03, y: -2 }}
+                                        whileTap={{ scale: 0.97 }}
+                                        style={{
+                                            flex: 1,
+                                            padding: '14px 20px',
+                                            borderRadius: '14px',
+                                            border: '2px solid var(--border-color)',
+                                            background: 'var(--bg-secondary)',
+                                            color: 'var(--text-main)',
+                                            cursor: isDeleting ? 'not-allowed' : 'pointer',
+                                            fontWeight: 600,
+                                            fontSize: '1rem',
+                                            opacity: isDeleting ? 0.5 : 1,
+                                            transition: 'all 0.2s ease',
+                                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                                        }}
+                                    >
+                                        ← Annuler
+                                    </motion.button>
+
+                                    <motion.button
+                                        onClick={handleDeleteOrder}
+                                        disabled={isDeleting}
+                                        whileHover={{ scale: isDeleting ? 1 : 1.03, y: isDeleting ? 0 : -2 }}
+                                        whileTap={{ scale: isDeleting ? 1 : 0.97 }}
+                                        style={{
+                                            flex: 1,
+                                            padding: '14px 20px',
+                                            borderRadius: '14px',
+                                            border: 'none',
+                                            background: isDeleting 
+                                                ? 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)'
+                                                : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                                            color: 'white',
+                                            cursor: isDeleting ? 'not-allowed' : 'pointer',
+                                            fontWeight: 700,
+                                            fontSize: '1rem',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: '10px',
+                                            boxShadow: isDeleting 
+                                                ? '0 6px 20px rgba(245, 158, 11, 0.4)'
+                                                : '0 6px 20px rgba(239, 68, 68, 0.4)',
+                                            transition: 'all 0.3s ease',
+                                            position: 'relative',
+                                            overflow: 'hidden'
+                                        }}
+                                    >
+                                        {isDeleting ? (
+                                            <>
+                                                <motion.div
+                                                    animate={{ rotate: 360 }}
+                                                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                                                >
+                                                    <Loader2 size={20} />
+                                                </motion.div>
+                                                <span>Suppression...</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Trash2 size={20} />
+                                                <span>Supprimer définitivement</span>
+                                            </>
+                                        )}
+                                    </motion.button>
+                                </motion.div>
+                            </div>
                         </motion.div>
                     </motion.div>
                 )}

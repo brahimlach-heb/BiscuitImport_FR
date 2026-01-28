@@ -866,6 +866,7 @@
     background: var(--bg-main);
     border-radius: 3px;
     overflow: hidden;
+    max-width: 100px;
 }
 
 .stock-bar .fill {
