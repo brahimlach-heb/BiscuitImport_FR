@@ -4,7 +4,7 @@ FROM node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9b
 WORKDIR /app
 
 # Build arguments for environment variables
-ARG VITE_API_BASE_URL
+ENV VITE_API_BASE_URL=http://72.62.237.60:3000
 
 # Copy package files
 COPY package.json package-lock.json* ./
@@ -16,8 +16,7 @@ RUN npm install
 COPY . .
 
 # Build the application with environment variables
-RUN VITE_API_BASE_URL=$VITE_API_BASE_URL npm run build
-
+RUN npm run build
 # Stage 2: Production stage
 FROM node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e
 
@@ -33,6 +32,7 @@ RUN npm install -g serve
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
 
+ENV VITE_API_BASE_URL=http://72.62.237.60:3000
 # Change ownership of app directory to appuser
 RUN chown -R appuser:appuser /app
 

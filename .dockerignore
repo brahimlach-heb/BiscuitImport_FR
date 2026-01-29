@@ -8,9 +8,6 @@ npm-debug.log
 dist
 build
 *.log
-.env
-.env.local
-.env.*.local
 README.md
 LICENSE
 .eslintrc.cjs

@@ -27,6 +27,8 @@ jobs:
           push: true
           tags: |
             lachheb/biscuitimport:v2
+          build-args: |
+            VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}
 
   deploy:
     needs: build-push
@@ -50,6 +52,6 @@ jobs:
             docker run -d \
               --name frontend \
               --restart unless-stopped \
-              -e VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }} \
+
               -p 5173:5173 \
               lachheb/biscuitimport:v2
