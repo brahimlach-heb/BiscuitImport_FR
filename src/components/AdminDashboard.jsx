@@ -1197,7 +1197,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                         <h3><Clock size={20} style={{ display: 'inline', marginRight: '10px' }} />Activité Récente</h3>
                     </div>
                     <div className="simple-table-modern">
-                        {orders.slice(0, 5).map(order => {
+                        {orders.slice(0, 3).map(order => {
                             const statusInfo = ORDER_STATUSES.find(s => s.value === order.status) || { color: '#999', label: order.status };
                             const orderDate = order.created_at ? new Date(order.created_at).toLocaleDateString('fr-FR', {
                                 day: '2-digit',
