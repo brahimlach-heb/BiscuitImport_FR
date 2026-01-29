@@ -656,10 +656,16 @@
     color: #2563EB;
 }
 
+.order-action-btn.download:hover svg {
+    color: #2563eb;
+}
 .icon-btn.delete:hover {
     border-color: #ef4444;
     color: #ef4444;
     background: rgba(239, 68, 68, 0.05);
+.icon-btn.download:hover svg {
+    color: #2563eb;
+}
 }
 
 .actions-cell {
@@ -693,6 +699,11 @@
     background: rgba(59, 130, 246, 0.1);
     border-color: #3b82f6;
     color: #3b82f6;
+
+.icon-btn.download:hover {
+    background: rgba(37, 99, 235, 0.12);
+    color: #2563eb;
+}
 }
 
 .icon-btn.edit:hover {
@@ -2235,6 +2246,12 @@ textarea.error {
 .order-action-btn.secondary:hover {
     border-color: var(--primary);
     color: var(--primary);
+}
+
+.order-action-btn.download:hover {
+    border-color: #2563eb;
+    color: #2563eb;
+    box-shadow: 0 4px 16px rgba(37, 99, 235, 0.25);
 }
 
 /* Responsive adjustments */

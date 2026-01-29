@@ -14,7 +14,7 @@ import {
     deleteCategory
 } from '../store/slices/categorySlice';
 import { getAllUsers } from '../store/slices/userSlice';
-import { getOrdersByUser, updateOrderDiscount } from '../store/slices/orderSlice';
+import { getOrdersByUser, updateOrderDiscount, downloadQuote } from '../store/slices/orderSlice';
 import {
     getAllRoles,
     createRole,
@@ -62,6 +62,7 @@ import {
     Shield,
     Eye,
     FileText,
+    Download,
     Grid,
     List
 } from 'lucide-react';
@@ -550,6 +551,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
     const [isRoleLoading, setIsRoleLoading] = useState(false);
     const [isBankLoading, setIsBankLoading] = useState(false);
     const [isSavingPayment, setIsSavingPayment] = useState(false);
+    const [downloadingOrderId, setDownloadingOrderId] = useState(null);
 
     // User role state for access control
     const [userRole, setUserRole] = useState(null);
@@ -735,6 +737,32 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
             setViewingOrder(fullOrder);
         } catch (error) {
             showToast('Erreur lors du chargement des détails de la commande', 'error');
+        }
+    };
+
+    const handleDownloadQuote = async (order) => {
+        if (downloadingOrderId) return;
+
+        const token = sessionStorage.getItem('token');
+        const orderId = order.order_number || order.id;
+
+        setDownloadingOrderId(orderId);
+
+        try {
+            const result = await dispatch(downloadQuote({ orderId, token })).unwrap();
+            const url = window.URL.createObjectURL(result.blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `devis-INV-${orderId}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('❌ Error downloading quote:', error);
+            alert('Erreur lors du téléchargement du devis');
+        } finally {
+            setDownloadingOrderId(null);
         }
     };
 
@@ -1913,6 +1941,8 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                     <div className="orders-grid-modern">
                         {paginatedOrders.map(order => {
                             const statusInfo = ORDER_STATUSES.find(s => s.value === order.status) || {color: '#999', label: order.status};
+                            const orderId = order.order_number || order.id;
+                            const isDownloading = downloadingOrderId === orderId;
                             return (
                             <motion.div 
                                 key={order.id} 
@@ -1975,6 +2005,19 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                     <button className="order-action-btn primary" onClick={() => handleViewOrder(order)}>
                                         <Eye size={16} />
                                         <span>Détails</span>
+                                    </button>
+                                    <button 
+                                        className="order-action-btn download" 
+                                        onClick={() => handleDownloadQuote(order)}
+                                        title="Télécharger devis"
+                                        disabled={isDownloading}
+                                    >
+                                        {isDownloading ? (
+                                            <Loader2 size={16} className="spinning" style={{ animation: 'spin 1s linear infinite' }} />
+                                        ) : (
+                                            <Download size={16} />
+                                        )}
+                                        <span>{isDownloading ? 'Téléchargement...' : 'Devis'}</span>
                                     </button>
                                     <button 
                                         className="order-action-btn secondary" 
@@ -2065,6 +2108,8 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                             <tbody>
                                 {paginatedOrders.map(order => {
                                     const statusInfo = ORDER_STATUSES.find(s => s.value === order.status) || {color: '#999', label: order.status};
+                                    const orderId = order.order_number || order.id;
+                                    const isDownloading = downloadingOrderId === orderId;
                                     return (
                                     <tr key={order.id}>
                                         <td>
@@ -2128,6 +2173,18 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                         </td>
                                         <td className="actions-cell">
                                             <button className="icon-btn view" title="Voir détails" onClick={() => handleViewOrder(order)}><Eye size={16} /></button>
+                                            <button
+                                                className="icon-btn download"
+                                                title="Télécharger devis"
+                                                onClick={() => handleDownloadQuote(order)}
+                                                disabled={isDownloading}
+                                            >
+                                                {isDownloading ? (
+                                                    <Loader2 size={16} className="spinning" style={{ animation: 'spin 1s linear infinite' }} />
+                                                ) : (
+                                                    <Download size={16} />
+                                                )}
+                                            </button>
                                             <button 
                                                 className="icon-btn" 
                                                 title="Méthodes de paiement"
