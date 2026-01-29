@@ -89,7 +89,6 @@ const InvoiceHistory = ({ onBack }) => {
         { value: 'ALL', label: 'Tous', count: allInvoices.length },
         { value: 'PENDING', label: 'En attente', count: allInvoices.filter(inv => inv.status === 'PENDING').length },
         { value: 'CONFIRMED', label: 'Confirmé', count: allInvoices.filter(inv => inv.status === 'CONFIRMED').length },
-        { value: 'PAID', label: 'Payé', count: allInvoices.filter(inv => inv.status === 'PAID').length },
         { value: 'PROCESSING', label: 'En traitement', count: allInvoices.filter(inv => inv.status === 'PROCESSING').length },
         { value: 'SHIPPED', label: 'Expédié', count: allInvoices.filter(inv => inv.status === 'SHIPPED').length },
         { value: 'DELIVERED', label: 'Livré', count: allInvoices.filter(inv => inv.status === 'DELIVERED').length },
@@ -442,7 +441,6 @@ const InvoiceHistory = ({ onBack }) => {
                                     <div className={`inv-status status-${invoice.status}`}>
                                         {invoice.status === 'PENDING' && <><Clock size={14} /> <span>En attente</span></>}
                                         {invoice.status === 'CONFIRMED' && <><CheckCircle2 size={14} /> <span>Confirmé</span></>}
-                                        {invoice.status === 'PAID' && <><CheckCircle2 size={14} /> <span>Payé</span></>}
                                         {invoice.status === 'PROCESSING' && <><Clock size={14} /> <span>En traitement</span></>}
                                         {invoice.status === 'SHIPPED' && <><CheckCircle2 size={14} /> <span>Expédié</span></>}
                                         {invoice.status === 'DELIVERED' && <><CheckCircle2 size={14} /> <span>Livré</span></>}
@@ -603,7 +601,6 @@ const InvoiceHistory = ({ onBack }) => {
                                     <div className={`status-badge status-${selectedInvoice.status}`}>
                                         {selectedInvoice.status === 'PENDING' && <><Clock size={16} /> <span>En attente</span></>}
                                         {selectedInvoice.status === 'CONFIRMED' && <><CheckCircle2 size={16} /> <span>Confirmé</span></>}
-                                        {selectedInvoice.status === 'PAID' && <><CheckCircle2 size={16} /> <span>Payé</span></>}
                                         {selectedInvoice.status === 'PROCESSING' && <><Clock size={16} /> <span>En traitement</span></>}
                                         {selectedInvoice.status === 'SHIPPED' && <><CheckCircle2 size={16} /> <span>Expédié</span></>}
                                         {selectedInvoice.status === 'DELIVERED' && <><CheckCircle2 size={16} /> <span>Livré</span></>}
