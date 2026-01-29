@@ -1,5 +1,5 @@
 # Stage 1: Build stage
-FROM node:18-alpine@sha256:f0d8c7c5e4d9c8b5a7f9e1d3c5b7a9f0e2d4c6b8a0f2e4d6c8b0a2e4d6c8b0 AS builder
+FROM node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e AS builder
 
 WORKDIR /app
 
@@ -19,7 +19,7 @@ COPY . .
 RUN VITE_API_BASE_URL=$VITE_API_BASE_URL npm run build
 
 # Stage 2: Production stage
-FROM node:18-alpine@sha256:f0d8c7c5e4d9c8b5a7f9e1d3c5b7a9f0e2d4c6b8a0f2e4d6c8b0a2e4d6c8b0
+FROM node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e
 
 WORKDIR /app
 
