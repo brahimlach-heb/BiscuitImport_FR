@@ -52,5 +52,5 @@ jobs:
             docker run -d \
               --name frontend \
               --restart unless-stopped \
-              -p 5173:5173 \
+              -p 80:80 \
               lachheb/biscuitimport:v2

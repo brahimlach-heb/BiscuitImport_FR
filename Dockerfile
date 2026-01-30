@@ -1,49 +1,52 @@
-# Stage 1: Build stage
-FROM node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e AS builder
+# =========================
+# Stage 1 : Build React/Vite
+# =========================
+FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Build arguments for environment variables
-ARG VITE_API_BASE_URL=http://72.62.237.60:3000
-
-# Copy package files
+# Copier les fichiers de dépendances
 COPY package.json package-lock.json* ./
 
-# Install dependencies
+# Installer les dépendances
 RUN npm install
 
-# Copy project files
+# Copier tout le projet
 COPY . .
 
-# Build the application with environment variables
+# Build de l'application
+ARG VITE_API_BASE_URL=http://72.62.237.60:3000
 RUN npm run build
-# Stage 2: Production stage
-FROM node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e
+
+# =========================
+# Stage 2 : Serve production
+# =========================
+FROM node:18-alpine
 
 WORKDIR /app
 
-# Create non-root user
+# Créer un utilisateur non-root
 RUN addgroup -g 1001 -S appuser && \
     adduser -S appuser -u 1001
 
-# Install a simple HTTP server to serve the built app
+# Installer un serveur HTTP simple
 RUN npm install -g serve
 
-# Copy built files from builder stage
+# Copier les fichiers build depuis le builder
 COPY --from=builder /app/dist ./dist
 
-ARG VITE_API_BASE_URL=http://72.62.237.60:3000
-# Change ownership of app directory to appuser
+# Définir le port pour servir l'application
+EXPOSE 80
+
+# Changer la propriété du dossier pour l'utilisateur non-root
 RUN chown -R appuser:appuser /app
 
-# Switch to non-root user
+# Passer à l'utilisateur non-root
 USER appuser
 
-# Expose port
-EXPOSE 5173
-
-# Health check
+# Vérifier que l'application fonctionne
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:5173', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
-# Start the application
-CMD ["serve", "-s", "dist", "-l", "5173"]
+  CMD node -e "require('http').get('http://localhost', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+
+# Lancer le frontend
+CMD ["serve", "-s", "dist", "-l", "80"]
