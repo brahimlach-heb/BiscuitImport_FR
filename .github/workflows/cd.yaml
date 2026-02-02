@@ -41,16 +41,30 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            # Pull the new image
+            # -----------------------------
+            # 1️⃣ Pull the new Docker image
+            # -----------------------------
             docker pull lachheb/biscuitimport:v2
-            
-            # Stop and remove the old container (if it exists)
+
+            # -----------------------------
+            # 2️⃣ Stop and remove old frontend container
+            # -----------------------------
             docker stop frontend || true
             docker rm frontend || true
-            
-            # Run the new container
+
+            # -----------------------------
+            # 3️⃣ Run new frontend container
+            # -----------------------------
             docker run -d \
               --name frontend \
               --restart unless-stopped \
-              -p 80:80 \
+              -l "traefik.enable=true" \
+              -l "traefik.http.routers.frontend.rule=Host(`amsfood.online`)" \
+              -l "traefik.http.routers.frontend.entrypoints=websecure" \
+              -l "traefik.http.routers.frontend.tls.certresolver=myresolver" \
               lachheb/biscuitimport:v2
+
+            # -----------------------------
+            # 4️⃣ Optional: Check container status
+            # -----------------------------
+            docker ps -a | grep frontend
