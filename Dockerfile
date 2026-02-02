@@ -19,7 +19,7 @@ ARG VITE_API_BASE_URL=http://72.62.237.60:3000
 RUN npm run build
 
 # =========================
-# Stage 2 : Serve production
+# Stage 2 : Serve production build
 # =========================
 FROM node:18-alpine
 
