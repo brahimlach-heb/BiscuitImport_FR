@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileText, User as UserIcon, MapPin, Phone, CheckCircle, ArrowLeft, Send, Mail, AlertCircle, Truck } from 'lucide-react';
 import Toast from './Toast';
+import { orderService } from '../services/orderService';
 import './InvoicePage.css';
 
 const InvoicePage = ({ items, onValidate, onCancel, user }) => {
@@ -15,6 +16,8 @@ const InvoicePage = ({ items, onValidate, onCancel, user }) => {
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [notification, setNotification] = useState(null);
+    const [recap, setRecap] = useState(null);
+    const [isDownloading, setIsDownloading] = useState(false);
 
     const subtotal = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     const tax = subtotal * 0.20; // 20% TVA
@@ -47,8 +50,19 @@ const InvoicePage = ({ items, onValidate, onCancel, user }) => {
 
         setIsLoading(true);
         try {
-            await onValidate(customer);
-            // Success notification is shown by parent component (HomePage)
+            const response = await onValidate(customer);
+            const payload = response?.data?.order || response?.data || response?.order || response;
+            const orderId = payload?.order_number || payload?.orderNumber || payload?.id || response?.order_number || response?.orderNumber || response?.id;
+
+            setRecap({
+                orderId,
+                date: new Date(),
+                customer: { ...customer },
+                items: [...items],
+                subtotal,
+                tax,
+                total
+            });
         } catch (error) {
             setNotification({
                 type: 'error',
@@ -56,6 +70,38 @@ const InvoicePage = ({ items, onValidate, onCancel, user }) => {
             });
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleDownloadQuote = async () => {
+        if (isDownloading) return;
+        const token = sessionStorage.getItem('token');
+        if (!token || !recap?.orderId) {
+            setNotification({
+                type: 'error',
+                message: 'Impossible de télécharger le devis pour le moment.'
+            });
+            return;
+        }
+
+        setIsDownloading(true);
+        try {
+            const blob = await orderService.downloadQuote(recap.orderId, token);
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `devis-INV-${recap.orderId}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            setNotification({
+                type: 'error',
+                message: 'Erreur lors du téléchargement du devis.'
+            });
+        } finally {
+            setIsDownloading(false);
         }
     };
 
@@ -80,7 +126,105 @@ const InvoicePage = ({ items, onValidate, onCancel, user }) => {
                 )}
             </AnimatePresence>
 
-            <div className="invoice-paper">
+            {recap ? (
+                <div className="invoice-paper">
+                    <div className="invoice-header">
+                        <div className="invoice-logo">
+                            <FileText size={32} />
+                            <span>RÉCAPITULATIF DEVIS</span>
+                        </div>
+                        <div className="invoice-meta">
+                            <p>Date : {recap.date.toLocaleDateString('fr-FR')}</p>
+                            {recap.orderId && <p>N° Devis : {recap.orderId}</p>}
+                        </div>
+                    </div>
+
+                    <div className="invoice-recap-body">
+                        <div className="recap-section">
+                            <h4>Informations Client</h4>
+                            <div className="recap-info-grid">
+                                <div className="recap-info-row">
+                                    <span className="recap-info-label">Nom</span>
+                                    <span className="recap-info-value">{recap.customer.name}</span>
+                                </div>
+                                <div className="recap-info-row">
+                                    <span className="recap-info-label">Email</span>
+                                    <span className="recap-info-value">{recap.customer.email}</span>
+                                </div>
+                                <div className="recap-info-row">
+                                    <span className="recap-info-label">Téléphone</span>
+                                    <span className="recap-info-value">{recap.customer.phone}</span>
+                                </div>
+                                <div className="recap-info-row full">
+                                    <span className="recap-info-label">Adresse</span>
+                                    <span className="recap-info-value">{recap.customer.address}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="recap-section">
+                            <h4>Détail de la commande</h4>
+                            <div className="recap-items">
+                                {recap.items.map((item, index) => (
+                                    <div key={item.id || index} className="recap-item-row">
+                                        <span>{item.name} x{item.quantity}</span>
+                                        <span>{(item.price * item.quantity).toFixed(2)} DH</span>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="recap-totals">
+                                <div className="recap-total-row">
+                                    <span>Sous-total</span>
+                                    <span>{recap.subtotal.toFixed(2)} DH</span>
+                                </div>
+                                <div className="recap-total-row">
+                                    <span>TVA (20%)</span>
+                                    <span>{recap.tax.toFixed(2)} DH</span>
+                                </div>
+                                <div className="recap-total-row total">
+                                    <span>Total</span>
+                                    <span>{recap.total.toFixed(2)} DH</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="invoice-recap-actions">
+                        <button
+                            className="invoice-btn btn-cancel"
+                            onClick={() => {
+                                setRecap(null);
+                                onCancel();
+                            }}
+                        >
+                            <ArrowLeft size={18} /> Retour à l'accueil
+                        </button>
+                        <button
+                            className="invoice-btn btn-validate"
+                            onClick={handleDownloadQuote}
+                            disabled={isDownloading}
+                        >
+                            {isDownloading ? (
+                                <>
+                                    <motion.div
+                                        animate={{ x: [-10, 10, -10] }}
+                                        transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
+                                        style={{ display: 'flex', alignItems: 'center' }}
+                                    >
+                                        <Truck size={18} />
+                                    </motion.div>
+                                    <span>Téléchargement...</span>
+                                </>
+                            ) : (
+                                <>
+                                    Télécharger le devis <FileText size={18} />
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                <div className="invoice-paper">
                 {/* Header */}
                 <div className="invoice-header">
                     <div className="invoice-logo">
@@ -223,7 +367,7 @@ const InvoicePage = ({ items, onValidate, onCancel, user }) => {
                                     <span>{tax.toFixed(2)} DH</span>
                                 </div>
                                 <div className="total-row grand-total">
-                                    <span>TOTAL GÉNÉRAL</span>
+                                    <span>TOTAL</span>
                                     <span>{total.toFixed(2)} DH</span>
                                 </div>
                             </div>
@@ -259,7 +403,8 @@ const InvoicePage = ({ items, onValidate, onCancel, user }) => {
                         )}
                     </button>
                 </div>
-            </div>
+                </div>
+            )}
         </motion.div>
     );
 };

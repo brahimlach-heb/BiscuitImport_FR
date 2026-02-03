@@ -971,22 +971,22 @@ const HomePage = ({ onLogout }) => {
             // Clear Cart
             setCartItems([]);
 
-            // Back to Shop
-            setCurrentView('shop');
-
-            // Show Success Toast (after navigation to ensure it's visible)
+            // Show Success Toast
             setTimeout(() => {
                 setNotification({
                     type: 'success',
                     message: 'Votre commande a été validée avec succès !'
                 });
             }, 100);
+
+            return response;
         } catch (error) {
             console.error('❌ Erreur lors de la création de la commande:', error);
             setNotification({
                 type: 'error',
                 message: 'Erreur lors de la validation de la commande. Veuillez réessayer.'
             });
+            throw error;
         }
     };
 
