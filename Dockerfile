@@ -15,7 +15,7 @@ RUN npm install
 COPY . .
 
 # Build de l'application
-ARG VITE_API_BASE_URL=http://72.62.237.60:3000
+ARG VITE_API_BASE_URL=https://api.amsfood.online
 RUN npm run build
 
 # =========================
@@ -36,7 +36,7 @@ RUN npm install -g serve
 COPY --from=builder /app/dist ./dist
 
 # Définir le port pour servir l'application
-EXPOSE 80
+EXPOSE 5173
 
 # Changer la propriété du dossier pour l'utilisateur non-root
 RUN chown -R appuser:appuser /app
@@ -49,4 +49,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
 
 # Lancer le frontend
-CMD ["serve", "-s", "dist", "-l", "80"]
+CMD ["serve", "-s", "dist", "-l", "5173"]
