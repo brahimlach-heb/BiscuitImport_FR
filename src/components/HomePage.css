@@ -104,6 +104,41 @@ body {
   gap: 1.5rem;
 }
 
+@media (max-width: 515px) {
+  .home-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .filter-toggle-btn {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.85rem;
+  }
+
+  .filter-toggle-btn span {
+    display: none;
+  }
+
+  .user-avatar {
+    width: 36px;
+    height: 36px;
+  }
+
+  .header-icon-wrapper,
+  .theme-toggle-btn {
+    padding: 0.3rem;
+  }
+}
+
 /* Filter Button Pulse Animation */
 .filter-toggle-btn {
   background: var(--bg-main);

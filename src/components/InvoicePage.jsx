@@ -7,7 +7,7 @@ import './InvoicePage.css';
 const InvoicePage = ({ items, onValidate, onCancel, user }) => {
     const [customer, setCustomer] = useState({
         name: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : '',
-        address: '',
+        address: user?.address || '',
         phone: user?.phone || '',
         email: user?.email || ''
     });

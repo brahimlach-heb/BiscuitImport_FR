@@ -572,7 +572,6 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                         .unwrap()
                         .then((role) => {
                             setUserRole(role?.data || role);
-                            console.log('🔐 User Role:', role?.data?.code, '| Is ADMIN:',role?.data?.code === 'ADMIN');
                             setIsLoadingRole(false);
                         })
                         .catch((error) => {
@@ -649,6 +648,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
         password: '',
         role_id: '',
         phone: '',
+        address: '',
         discount_percent: 20,
         is_active: true,
         deactivated_at: new Date().toISOString().split('T')[0]
@@ -935,6 +935,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                     password: newUser.password,
                     role_id: parseInt(newUser.role_id),
                     phone: newUser.phone || undefined,
+                    address: newUser.address || undefined,
                     discount_percent: parseFloat(newUser.discount_percent),
                     is_active: newUser.is_active,
                     deactivated_at: newUser.deactivated_at
@@ -954,6 +955,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                     password: '',
                     role_id: '',
                     phone: '',
+                    address: '',
                     discount_percent: 20,
                     is_active: true,
                     deactivated_at: '2026-01-20'
@@ -977,6 +979,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                     email: newUser.email,
                     role_id: parseInt(newUser.role_id),
                     phone: newUser.phone || undefined,
+                    address: newUser.address || undefined,
                     discount_percent: parseFloat(newUser.discount_percent),
                     is_active: newUser.is_active,
                     deactivated_at: newUser.deactivated_at
@@ -1000,6 +1003,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                     password: '',
                     role_id: '',
                     phone: '',
+                    address: '',
                     discount_percent: 20,
                     is_active: true,
                     deactivated_at: '2026-01-20'
@@ -1559,6 +1563,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                                 password: '',
                                                 role_id: user.role_id || '',
                                                 phone: user.phone || '',
+                                                address: user.address || '',
                                                 discount_percent: user.discount_percent || 20,
                                                 is_active: user.is_active !== undefined ? user.is_active : true,
                                                 deactivated_at: user.deactivated_at || new Date().toISOString().split('T')[0]
@@ -3220,6 +3225,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                         password: '',
                         role_id: '',
                         phone: '',
+                        address: '',
                         discount_percent: 20,
                         is_active: true,
                         deactivated_at: '2026-01-20'
@@ -3247,6 +3253,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                     password: '',
                                     role_id: '',
                                     phone: '',
+                                    address: '',
                                     discount_percent: 20,
                                     is_active: true,
                                     deactivated_at: '2026-01-20'
@@ -3298,6 +3305,15 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                     className={userErrors.phone ? 'error' : ''}
                                 />
                                 {userErrors.phone && <span className="error-text">{userErrors.phone}</span>}
+                            </div>
+                            <div className="form-group">
+                                <label>Adresse</label>
+                                <input
+                                    type="text"
+                                    placeholder="Adresse du client"
+                                    value={newUser.address}
+                                    onChange={(e) => setNewUser({ ...newUser, address: e.target.value })}
+                                />
                             </div>
                             <div className="form-group">
                                 <label>Mot de passe {editingUser ? '' : '*'}</label>
@@ -3371,6 +3387,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                     password: '',
                                     role_id: '',
                                     phone: '',
+                                    address: '',
                                     discount_percent: 20,
                                     is_active: true,
                                     deactivated_at: '2026-01-20'

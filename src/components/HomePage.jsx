@@ -665,6 +665,7 @@ const HomePage = ({ onLogout }) => {
 
     // Extract actual user object from API response
     const user = currentUser?.data?.user || null;
+    console.log('🏠 HomePage - Utilisateur actuel:', user);
 
     const isDemoMode = (reduxProducts.length === 0 || reduxCategories.length === 0) && !productsLoading && !categoriesLoading;
     const products = isDemoMode ? PRODUCTS : reduxProducts;
@@ -724,7 +725,7 @@ const HomePage = ({ onLogout }) => {
         firstName: user.first_name || 'Utilisateur',
         lastName: user.last_name || '',
         role: roles.find(r => r.id === user.role_id)?.code || user.role_code || 'CLIENT',
-        pendingInvoices: 0
+        pendingInvoices: user.pendingInvoices || 0
     } : {
         firstName: 'Utilisateur',
         lastName: '',
@@ -851,6 +852,10 @@ const HomePage = ({ onLogout }) => {
             // Ensure we don't store the helper prop 'quantityToAdd' in the state
             const { quantityToAdd: _, ...productData } = product;
             return [...prev, { ...productData, quantity: quantityToAdd }];
+        });
+        setNotification({
+            type: 'success',
+            message: `${quantityToAdd} x ${product.name} ajouté au panier.`
         });
         // Optional: Open cart on add? Or just badge? let's stick to badge for now.
     };
@@ -1308,7 +1313,7 @@ const HomePage = ({ onLogout }) => {
                                             <span>Mes Devis</span>
                                         </div>
                                         {userData.pendingInvoices > 0 && (
-                                            <span className="facture-badge pulse">{console.log("userData:", userData)}</span>
+                                            <span className="facture-badge pulse">{userData.pendingInvoices}</span>
                                         )}
                                     </div>
 
