@@ -419,12 +419,12 @@ const InvoiceHistory = ({ onBack }) => {
                             paginatedInvoices.map((invoice, index) => (
                                 <motion.div
                                     key={invoice.id}
-                                    className="invoice-item-card"
+                                    className={`invoice-item-card status-${invoice.status}`}
                                     variants={itemVariants}
                                     layout
                                     onClick={() => handleInvoiceClick(invoice)}
                                 >
-                                    <div className="inv-icon">
+                                    <div className={`inv-icon status-${invoice.status}`}>
                                         <FileText size={20} />
                                     </div>
                                     <div className="inv-info">
