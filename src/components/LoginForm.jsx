@@ -11,8 +11,8 @@ const LoginForm = ({ onLoginSuccess }) => {
     const [loading, setLoading] = useState(false);
 
     // Form States
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
+    const [username, setUsername] = useState('b@gmail.com');
+    const [password, setPassword] = useState('string');
     const [email, setEmail] = useState('');
     const [token, setToken] = useState('');
 
@@ -256,3 +256,4 @@ const SubmitButton = ({ loading, children }) => (
 );
 
 export default LoginForm;
+
