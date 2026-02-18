@@ -5,7 +5,8 @@ export const getAllProducts = createAsyncThunk(
   'product/getAllProducts',
   async ({ category, token }, { rejectWithValue }) => {
     try {
-      const response = await productService.getAllProducts(category, token);
+      // Correction: token doit être le premier argument, category le second
+      const response = await productService.getAllProducts(token, category);
       return response;
     } catch (error) {
       return rejectWithValue(error.message);

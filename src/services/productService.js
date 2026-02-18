@@ -1,8 +1,12 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 export const productService = {
-  async getAllProducts(category = null, token) {
-    const url = category ? `${API_BASE_URL}/api/products?category=${category}` : `${API_BASE_URL}/api/products`;
+  async getAllProducts(token, category = null) {
+    let url = `${API_BASE_URL}/api/products`;
+    // Swagger: category est un paramètre de query string optionnel
+    if (category !== null && category !== undefined && category !== "") {
+      url += `?category=${encodeURIComponent(category)}`;
+    }
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -11,6 +15,34 @@ export const productService = {
     });
     if (!response.ok) {
       throw new Error('Failed to get products');
+    }
+    return response.json();
+  },
+  async exportProductsToExcel(token) {
+    const response = await fetch(`${API_BASE_URL}/api/products/export/excel`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to export products to Excel');
+    }
+    return response.blob(); // Excel file as blob
+  },
+
+  async importProductsFromExcel(file, token) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch(`${API_BASE_URL}/api/products/import/excel`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+    if (!response.ok) {
+      throw new Error('Failed to import products from Excel');
     }
     return response.json();
   },

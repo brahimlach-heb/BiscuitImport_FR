@@ -456,6 +456,54 @@ const DonutChart = ({ data, total }) => {
 };
 
 const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
+        // --- Import/Export Excel hooks (déplacés ici pour éviter l'erreur de hooks) ---
+        const [isExporting, setIsExporting] = useState(false);
+        const [isImporting, setIsImporting] = useState(false);
+        const [importError, setImportError] = useState(null);
+        const [importSuccess, setImportSuccess] = useState(null);
+        const fileInputRef = React.useRef();
+
+        // Export handler
+        const handleExportExcel = async () => {
+            setIsExporting(true);
+            try {
+                const token = sessionStorage.getItem('token');
+                const blob = await productService.exportProductsToExcel(token);
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'produits.xlsx';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                if (showToast) showToast('Exportation Excel réussie !', 'success');
+            } catch (e) {
+                if (showToast) showToast("Erreur lors de l'exportation Excel.", 'error');
+            } finally {
+                setIsExporting(false);
+            }
+        };
+
+        // Import handler
+        const handleImportExcel = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            setIsImporting(true);
+            try {
+                const token = sessionStorage.getItem('token');
+                await productService.importProductsFromExcel(file, token);
+                if (showToast) showToast('Importation Excel réussie !', 'success');
+                // Optionally refresh products
+                if (typeof dispatch === 'function') {
+                    dispatch(getAllProducts({ category: null, token }));
+                }
+            } catch (e) {
+                if (showToast) showToast("Erreur lors de l'importation Excel.", 'error');
+            } finally {
+                setIsImporting(false);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+            }
+        };
     const dispatch = useAppDispatch();
 
     // Redux state
@@ -1678,7 +1726,6 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
         const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
         const paginatedProducts = paginate(filteredProducts, currentProductPage);
         const totalPages = getTotalPages(filteredProducts);
-
         return (
             <div className="admin-section">
                 <div className="section-header">
@@ -1692,6 +1739,31 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
+                        </div>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                            <button
+                                className={`export-btn animated-btn${isExporting ? ' loading' : ''}`}
+                                onClick={handleExportExcel}
+                                disabled={isExporting}
+                                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                            >
+                                {isExporting ? <Loader2 className="spin" size={18} /> : <Download size={18} />}
+                                Exporter Excel
+                            </button>
+                            <label className={`import-btn animated-btn${isImporting ? ' loading' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: isImporting ? 'not-allowed' : 'pointer', marginBottom: 0 }}>
+                                {isImporting ? <Loader2 className="spin" size={18} /> : <FileText size={18} />}
+                                Importer Excel
+                                <input
+                                    type="file"
+                                    accept=".xlsx,.xls"
+                                    ref={fileInputRef}
+                                    style={{ display: 'none' }}
+                                    onChange={handleImportExcel}
+                                    disabled={isImporting}
+                                />
+                            </label>
+                            {importError && <span className="import-error animated-fade" style={{ color: '#ef4444', marginLeft: 8 }}>{importError}</span>}
+                            {importSuccess && <span className="import-success animated-fade" style={{ color: '#10b981', marginLeft: 8 }}>{importSuccess}</span>}
                         </div>
                         <button className="add-btn high-contrast" onClick={() => setIsAddingProduct(true)}>
                             <Plus size={18} /> Nouveau Produit
