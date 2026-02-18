@@ -11,8 +11,8 @@ const LoginForm = ({ onLoginSuccess }) => {
     const [loading, setLoading] = useState(false);
 
     // Form States
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
+    const [username, setUsername] = useState('b@gmail.com');
+    const [password, setPassword] = useState('string');
     const [email, setEmail] = useState('');
     const [token, setToken] = useState('');
 
@@ -234,8 +234,8 @@ const SubmitButton = ({ loading, children }) => (
         whileTap={{ scale: 0.98 }}
         animate={loading ? {} : {
             boxShadow: [
-                "0 0 0 0 rgba(255, 0, 0, 0)",
-                "0 0 0 0 rgba(255, 0, 0, 0)",
+                "0 0 0 0 rgba(195, 33, 38, 0)",
+                "0 0 0 0 rgba(195, 33, 38, 0)",
             ]
         }}
     >

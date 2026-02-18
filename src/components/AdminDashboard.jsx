@@ -102,7 +102,6 @@ const SALES_DATA = [
 const ORDER_STATUSES = [
     { label: 'En attente', value: 'PENDING', icon: <Clock size={14} />, color: '#f59e0b' }, // Orange
     { label: 'Confirmée', value: 'CONFIRMED', icon: <CheckCircle2 size={14} />, color: '#10b981' }, // Vert
-    { label: 'Payée', value: 'PAID', icon: <CheckCircle2 size={14} />, color: '#22c55e' }, // Vert clair
     { label: 'En cours de traitement', value: 'PROCESSING', icon: <Package size={14} />, color: '#8b5cf6' }, // Violet
     { label: 'Expédiée', value: 'SHIPPED', icon: <Truck size={14} />, color: '#3b82f6' }, // Bleu
     { label: 'Livrée', value: 'DELIVERED', icon: <CheckCircle2 size={14} />, color: '#059669' }, // Vert foncé

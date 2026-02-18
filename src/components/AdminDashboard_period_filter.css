@@ -29,12 +29,12 @@
 .period-filter button.active {
     background: var(--primary-accent);
     color: white;
-    box-shadow: 0 2px 4px rgba(211, 47, 47, 0.2);
+    box-shadow: 0 2px 4px rgba(195, 33, 38, 0.2);
 }
 
 [data-theme='dark'] .period-filter button.active {
     background: var(--primary-accent);
-    box-shadow: 0 2px 4px rgba(239, 83, 80, 0.3);
+    box-shadow: 0 2px 4px rgba(195, 33, 38, 0.3);
 }
 
 .card-header-flex {
@@ -54,7 +54,7 @@
 }
 
 .gradient-header {
-    background: linear-gradient(135deg, var(--primary-accent), #b71c1c);
+    background: linear-gradient(135deg, var(--primary-accent), #c32126);
     color: white;
     padding: 24px 30px;
     border-radius: 20px 20px 0 0;
@@ -308,7 +308,7 @@
 
 .role-price-card:hover {
     border-color: var(--primary-accent);
-    box-shadow: 0 4px 12px rgba(211, 47, 47, 0.1);
+    box-shadow: 0 4px 12px rgba(195, 33, 38, 0.1);
 }
 
 .role-info {
@@ -379,7 +379,7 @@
 .btn-primary:hover {
     background: var(--primary-accent-hover);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(211, 47, 47, 0.3);
+    box-shadow: 0 4px 12px rgba(195, 33, 38, 0.3);
 }
 
 /* Product Details Modal - Modern Design */

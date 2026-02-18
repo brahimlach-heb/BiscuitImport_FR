@@ -4,7 +4,7 @@
     --bg-secondary: #f8f9fa;
     --text-main: #2c3e50;
     --text-muted: #6c757d;
-    --primary-accent: #dc3545;
+    --primary-accent: #c32126;
     --border-color: #e9ecef;
     --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
@@ -87,7 +87,7 @@ body[data-theme='dark'] .filter-btn:hover {
 .filter-btn.active {
     background: var(--primary-accent);
     color: white;
-    box-shadow: 0 4px 12px rgba(231, 76, 60, 0.2);
+    box-shadow: 0 4px 12px rgba(195, 33, 38, 0.2);
 }
 
 .invoices-list {
@@ -150,7 +150,7 @@ body[data-theme='dark'] .filter-btn:hover {
     width: 48px;
     height: 48px;
     border-radius: 12px;
-    background: rgba(231, 76, 60, 0.1);
+    background: rgba(195, 33, 38, 0.1);
     color: var(--primary-accent);
     display: flex;
     align-items: center;
@@ -389,7 +389,7 @@ body[data-theme='dark'] .filter-btn:hover {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(255, 0, 0, 0.05) 100%);
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(195, 33, 38, 0.05) 100%);
 }
 
 .header-content {
@@ -543,7 +543,7 @@ body[data-theme='dark'] .filter-btn:hover {
     width: 36px;
     height: 36px;
     border-radius: 8px;
-    background: linear-gradient(135deg, var(--primary-accent), rgba(255, 0, 0, 0.8));
+    background: linear-gradient(135deg, var(--primary-accent), rgba(195, 33, 38, 0.8));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -805,7 +805,7 @@ body[data-theme='dark'] .filter-btn:hover {
 /* Enhanced Footer */
 .detail-footer {
     padding: 1.25rem 1.5rem;
-    background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(255, 0, 0, 0.02) 100%);
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(195, 33, 38, 0.02) 100%);
     border-top: 1px solid var(--border-color);
     display: flex;
     justify-content: space-between;
@@ -915,9 +915,9 @@ body[data-theme='dark'] .filter-btn:hover {
 }
 
 .action-btn.primary:hover {
-    background: rgba(255, 0, 0, 0.9);
+    background: rgba(195, 33, 38, 0.9);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(255, 0, 0, 0.3);
+    box-shadow: 0 4px 12px rgba(195, 33, 38, 0.3);
 }
 
 /* Responsive Design */

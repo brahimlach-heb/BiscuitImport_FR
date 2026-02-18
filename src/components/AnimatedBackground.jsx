@@ -99,7 +99,7 @@ const AnimatedBackground = () => {
                         top: `${box.y}%`,
                         left: '-50px', // Start off-screen left
                         opacity: 0.3,
-                        color: '#FF0000', // Red boxes for branding
+                        color: '#c32126', // Red boxes for branding
                     }}
                     animate={{
                         x: ['0vw', '110vw'], // Move across screen
@@ -125,7 +125,7 @@ const AnimatedBackground = () => {
                         width: '4px',
                         height: '4px',
                         borderRadius: '50%',
-                        backgroundColor: '#FF0000', // Subtle red dots
+                        backgroundColor: '#c32126', // Subtle red dots
                         opacity: 0.4,
                         left: `${particle.x}%`,
                         top: `${particle.y}%`,

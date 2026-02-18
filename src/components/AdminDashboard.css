@@ -73,7 +73,7 @@
     background: var(--primary);
     color: white;
     border-color: var(--primary);
-    box-shadow: 0 4px 12px red;
+    box-shadow: 0 4px 12px #c32126;
 }
 
 .sidebar-footer {
@@ -622,11 +622,11 @@
     background: var(--primary);
     color: white;
     border-color: var(--primary);
-    box-shadow: 0 4px 15px red;
+    box-shadow: 0 4px 15px #c32126;
 }
 
 .add-btn.high-contrast:hover {
-    background: red;
+    background: #c32126;
     transform: translateY(-3px);
     box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
 }
@@ -1735,7 +1735,7 @@
 .chart-toggle-mini button.active {
     background: var(--primary);
     color: white;
-    box-shadow: 0 2px 8px red;
+    box-shadow: 0 2px 8px #c32126;
 }
 
 /* Trend Chart Container */
@@ -2208,10 +2208,11 @@ textarea.error {
 .order-card-footer {
     display: flex;
     gap: 10px;
+    flex-wrap: wrap;
 }
 
 .order-action-btn {
-    flex: 1;
+    flex: 1 1 140px;
     display: flex;
     align-items: center;
     justify-content: center;
