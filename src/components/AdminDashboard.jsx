@@ -1741,18 +1741,79 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                             />
                         </div>
                         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                            {/* Export Button */}
                             <button
-                                className={`export-btn animated-btn${isExporting ? ' loading' : ''}`}
+                                className={`modern-action-btn export${isExporting ? ' loading' : ''}`}
                                 onClick={handleExportExcel}
                                 disabled={isExporting}
-                                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 8,
+                                    background: '#e3edfa', // Soft blue
+                                    color: '#2563eb', // Blue text
+                                    border: '2px solid #2563eb', // Blue border
+                                    borderRadius: '16px', // Match Nouveau Produit button
+                                    padding: '0 18px',
+                                    height: '48px',
+                                    minWidth: '180px',
+                                    fontWeight: 700,
+                                    fontSize: '1rem',
+                                    boxShadow: '0 2px 8px 0 rgba(59,130,246,0.04)',
+                                    cursor: isExporting ? 'not-allowed' : 'pointer',
+                                    transition: 'background 0.2s, color 0.2s, border 0.2s',
+                                    position: 'relative',
+                                    opacity: isExporting ? 0.7 : 1
+                                }}
+                                onMouseOver={e => {
+                                    e.currentTarget.style.background = '#2563eb'; // Blue
+                                    e.currentTarget.style.color = '#fff';
+                                }}
+                                onMouseOut={e => {
+                                    e.currentTarget.style.background = '#e3edfa';
+                                    e.currentTarget.style.color = '#2563eb';
+                                }}
                             >
                                 {isExporting ? <Loader2 className="spin" size={18} /> : <Download size={18} />}
-                                Exporter Excel
+                                <span style={{lineHeight: 1}}>Exporter Excel</span>
                             </button>
-                            <label className={`import-btn animated-btn${isImporting ? ' loading' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: isImporting ? 'not-allowed' : 'pointer', marginBottom: 0 }}>
+                            {/* Import Button */}
+                            <label
+                                className={`modern-action-btn import${isImporting ? ' loading' : ''}`}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 8,
+                                    background: '#e6f7ef', // Soft green
+                                    color: '#059669', // Green text
+                                    border: '2px solid #059669', // Green border
+                                    borderRadius: '16px', // Match Nouveau Produit button
+                                    padding: '0 18px',
+                                    height: '48px',
+                                    minWidth: '180px',
+                                    fontWeight: 700,
+                                    fontSize: '1rem',
+                                    boxShadow: '0 2px 8px 0 rgba(59,130,246,0.04)',
+                                    cursor: isImporting ? 'not-allowed' : 'pointer',
+                                    marginBottom: 0,
+                                    transition: 'background 0.2s, color 0.2s, border 0.2s',
+                                    position: 'relative',
+                                    opacity: isImporting ? 0.7 : 1,
+                                    overflow: 'hidden'
+                                }}
+                                onMouseOver={e => {
+                                    e.currentTarget.style.background = '#059669'; // Green
+                                    e.currentTarget.style.color = '#fff';
+                                }}
+                                onMouseOut={e => {
+                                    e.currentTarget.style.background = '#e6f7ef';
+                                    e.currentTarget.style.color = '#059669';
+                                }}
+                            >
                                 {isImporting ? <Loader2 className="spin" size={18} /> : <FileText size={18} />}
-                                Importer Excel
+                                <span style={{lineHeight: 1}}>Importer Excel</span>
                                 <input
                                     type="file"
                                     accept=".xlsx,.xls"
@@ -1760,6 +1821,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                     style={{ display: 'none' }}
                                     onChange={handleImportExcel}
                                     disabled={isImporting}
+                                    tabIndex={-1}
                                 />
                             </label>
                             {importError && <span className="import-error animated-fade" style={{ color: '#ef4444', marginLeft: 8 }}>{importError}</span>}
