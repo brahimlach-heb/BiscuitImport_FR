@@ -15,6 +15,39 @@ import AdminDashboard from './AdminDashboard';
 import Toast from './Toast';
 import './HomePage.css';
 
+// --- Mock Data ---
+
+const CATEGORIES = [
+
+];
+
+// FILTERS will be dynamically extracted from products
+
+const FLAVOR_COLORS = {
+
+};
+
+const PRODUCTS = [
+];
+
+// Add descriptions and specs to products (Helper for demo)
+PRODUCTS.forEach(p => {
+    if (!p.description) {
+        p.description = `Découvrez notre ${p.name}, un produit de qualité supérieure de la marque ${p.brand}. Parfait pour vos pauses gourmandes.`;
+    }
+    if (!p.ingredients) {
+        p.ingredients = "Farine de blé, Sucre, Beurre concentré, Œufs frais, Arômes naturels, Sel.";
+    }
+
+    // Detailed specific fields with varied examples
+    p.manufacturer = p.manufacturer || (p.category === 'biscuits' ? "Bakery Joy S.A." : "Liquid Fresh Ltd");
+    p.origin = p.origin || (p.id % 4 === 0 ? "Italie" : p.id % 3 === 0 ? "France" : p.id % 2 === 0 ? "Espagne" : "Maroc");
+    p.format = p.format || p.packageUnit;
+    p.dimensions = p.dimensions || (p.category === 'biscuits' ? "18 x 12 x 4 cm" : "6 x 6 x 22 cm");
+    p.packagingType = p.packagingType || (p.category === 'biscuits' ? "Sachet protecteur Carton" : "Bouteille Verre / Gobelet");
+    p.contentName = p.contentName || p.name;
+});
+
 const ITEMS_PER_PAGE = 8;
 
 const ProductDetailModal = ({ product, isOpen, onClose, onAddToCart, categories = [] }) => {
