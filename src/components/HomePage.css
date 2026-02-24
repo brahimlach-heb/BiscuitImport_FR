@@ -460,36 +460,50 @@ body {
 }
 
 .categories-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 3rem;
+  display: flex;
+  flex-direction: row;
+  gap: 0.8rem;
+  margin-bottom: 1.2rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  scrollbar-width: thin;
 }
 
 .category-card {
-  background: var(--bg-main);
+  background: linear-gradient(135deg, var(--bg-secondary), var(--bg-main));
   border: 1px solid var(--border-color);
-  border-radius: 16px;
-  padding: 1.5rem;
+  border-radius: 50px;
+  padding: 0.5rem 1.1rem;
+  min-width: 80px;
+  max-width: 120px;
   text-align: center;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: background 0.3s, color 0.3s, box-shadow 0.3s, transform 0.2s;
   position: relative;
   overflow: hidden;
-  box-shadow: var(--shadow-soft);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 44px;
 }
 
 .category-card:hover {
-  transform: translateY(-5px);
-  box-shadow: var(--shadow-hover);
+  background: linear-gradient(135deg, var(--primary-accent), var(--bg-main));
+  color: white;
+  box-shadow: 0 4px 16px rgba(195,33,38,0.12);
   border-color: var(--primary-accent);
+  transform: scale(1.07);
 }
 
 .category-card.selected {
   background: linear-gradient(135deg, var(--primary-accent), #f44336);
-  border-color: transparent;
-  box-shadow: 0 8px 20px rgba(195, 33, 38, 0.3);
+  border-color: var(--primary-accent);
+  box-shadow: 0 8px 20px rgba(195, 33, 38, 0.18);
   color: white;
+  transform: scale(1.12);
 }
 
 .category-card.selected .category-icon {
@@ -497,8 +511,8 @@ body {
 }
 
 .category-icon {
-  font-size: 2.5rem;
-  margin-bottom: 0.5rem;
+  font-size: 1.3rem;
+  margin-right: 0.4rem;
   display: block;
   transition: transform 0.3s;
 }
@@ -508,8 +522,11 @@ body {
 }
 
 .category-name {
-  font-weight: 600;
-  font-size: 1.1rem;
+  font-weight: 500;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 /* Product Grid */
