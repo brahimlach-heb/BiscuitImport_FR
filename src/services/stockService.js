@@ -47,15 +47,14 @@ export const stockService = {
   },
 
   async adjustStock(productId, adjustmentQuantity, reason = 'adjustment', token) {
-    const response = await fetch(`${API_BASE_URL}/api/stock/adjust`, {
-      method: 'POST',
+    const response = await fetch(`${API_BASE_URL}/api/products/${productId}/adjust-stock`, {
+      method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify({
-        product_id: productId,
-        adjustment_quantity: adjustmentQuantity,
+        quantity: adjustmentQuantity,
         reason
       }),
     });

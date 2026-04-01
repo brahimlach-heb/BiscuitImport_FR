@@ -2017,6 +2017,15 @@ textarea.error {
     }
 }
 
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.6;
+    }
+}
+
 .view-toggle-btn:hover {
     background: var(--bg-card);
     color: var(--text-main);

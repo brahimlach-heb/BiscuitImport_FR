@@ -12,7 +12,7 @@ const LoginForm = ({ onLoginSuccess }) => {
 
     // Form States
     const [username, setUsername] = useState('b@gmail.com');
-    const [password, setPassword] = useState('');
+    const [password, setPassword] = useState('string');
     const [email, setEmail] = useState('');
     const [token, setToken] = useState('');
 

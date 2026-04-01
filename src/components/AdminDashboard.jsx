@@ -2167,7 +2167,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                                     fontWeight: '600'
                                                 }}
                                             >
-                                                {product.stock} units
+                                               units
                                             </span>
                                         </div>
                                     </td>
@@ -2222,9 +2222,9 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
             );
         });
 
-        const totalStock = stocksList.reduce((sum, stock) => sum + (parseInt(stock?.quantity) || 0), 0);
+        const totalStock = stocksList.reduce((sum, stock) => sum + (parseInt(stock?.stock) || 0), 0);
         const lowStockCount = stockAlerts.length;
-        const outOfStock = stocksList.filter(s => s && parseInt(s?.quantity) === 0).length;
+        const outOfStock = stocksList.filter(s => s && parseInt(s?.stock) <= parseInt(s?.stock_securite || 0)).length;
 
         const handleAdjustStock = async () => {
             if (!stockAdjustmentModal || !adjustmentQuantity) {
@@ -2255,16 +2255,26 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
             }
         };
 
-        const openAdjustmentModal = (productId, productName, currentStock) => {
-            setStockAdjustmentModal({ productId, productName, currentStock });
+        const openAdjustmentModal = async (productId, productName, currentStock) => {
+            const token = sessionStorage.getItem('token');
+            try {
+                // Charger les données complètes du produit pour avoir le stock exact
+                const product = await productService.getProductById(productId, token);
+                const actualStock = product.stock || product.quantity || currentStock || 0;
+                setStockAdjustmentModal({ productId, productName, currentStock: actualStock });
+            } catch (error) {
+                // Si erreur, utiliser les données passées en paramètre
+                setStockAdjustmentModal({ productId, productName, currentStock: currentStock || 0 });
+            }
             setAdjustmentQuantity(0);
             setAdjustmentReason('adjustment');
         };
 
-        const getStockStatus = (quantity) => {
+        const getStockStatus = (quantity, stock_securite) => {
             const qty = parseInt(quantity);
-            if (qty === 0) return { status: 'out', color: '#ef4444', label: 'Rupture' };
-            if (qty < lowStockThreshold) return { status: 'low', color: '#f97316', label: 'Faible' };
+            const threshold = stock_securite && !isNaN(stock_securite) ? parseInt(stock_securite) : lowStockThreshold;
+            if (qty <= 0) return { status: 'out', color: '#ef4444', label: 'Rupture' };
+            if (qty <= threshold) return { status: 'low', color: '#f97316', label: 'Faible' };
             return { status: 'ok', color: '#10b981', label: 'Bon' };
         };
 
@@ -2345,7 +2355,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                             Produits en Alerte ({stockAlerts.length})
                         </div>
                         {stockAlerts.map((alert, idx) => {
-                            const status = getStockStatus(alert.quantity);
+                            const status = getStockStatus(alert.stock, alert.stock_securite);
                             return (
                                 <div 
                                     key={idx} 
@@ -2358,16 +2368,16 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                             {status.label} - 
                                             {status.status === 'out' 
                                                 ? ' Rupture de stock' 
-                                                : ` ${alert.quantity} unités restantes`
+                                                : ` ${alert.deficit} unités restantes`
                                             }
                                         </div>
                                     </div>
                                     <button
                                         className="stock-action-btn"
                                         onClick={() => openAdjustmentModal(
-                                            alert.product_id,
-                                            alert.product_name,
-                                            alert.quantity
+                                            alert.product_id || alert.id,
+                                            alert.product_name || alert.name || 'Produit inconnu',
+                                            alert.quantity || 0
                                         )}
                                     >
                                         <Plus size={16} /> Ravitailler
@@ -2413,8 +2423,8 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                             </thead>
                             <tbody>
                                 {filteredStocks.map((stock, idx) => {
-                                    const status = getStockStatus(stock.quantity);
-                                    const percentage = getStockPercentage(stock.quantity);
+                                    const status = getStockStatus(stock.stock, stock.stock_securite);
+                                    const percentage = getStockPercentage(stock.stock);
                                     return (
                                         <tr key={idx}>
                                             <td>
@@ -2423,14 +2433,20 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                             <td>{'PRD-' + (stock.id || 'N/A')}</td>
                                             <td>{stock.category_name || 'N/A'}</td>
                                             <td>
-                                                <div className="stock-quantity">
-                                                    <div className="stock-bar">
+                                                <div className="stock-quantity" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+                                                    <div style={{
+                                                        fontSize: '0.8rem',
+                                                        fontWeight: '600',
+                                                        color: status.color
+                                                    }}>
+                                                        {stock.stock} <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>unités</span>
+                                                    </div>
+                                                    <div className="stock-bar" style={{ width: '100%' }}>
                                                         <div 
                                                             className={`stock-bar-fill ${status.status === 'low' ? 'low' : status.status === 'ok' ? '' : 'warning'}`}
                                                             style={{ width: `${percentage}%` }}
                                                         />
                                                     </div>
-                                                    <div className="stock-quantity-value">{stock.quantity}</div>
                                                 </div>
                                             </td>
                                             <td>
@@ -2442,7 +2458,12 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                                     fontWeight: '600',
                                                     fontSize: '0.85rem'
                                                 }}>
-                                                    {status.label}
+                                                    <span style={{
+                                                        display: 'inline-block',
+                                                        animation: status.status === 'low' ? 'pulse 1.5s ease-in-out infinite' : 'none'
+                                                    }}>
+                                                        {status.label}
+                                                    </span>
                                                 </span>
                                             </td>
                                             <td>{stock.stock_securite}</td>
@@ -2451,9 +2472,9 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                                     <button
                                                         className="stock-action-btn"
                                                         onClick={() => openAdjustmentModal(
-                                                            stock.product_id,
-                                                            stock.product_name,
-                                                            stock.quantity
+                                                            stock.id,
+                                                            stock.name || stock.product_name,
+                                                            stock.quantity || 0
                                                         )}
                                                         title="Ajuster le stock"
                                                     >
@@ -2503,7 +2524,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                         borderRadius: '8px',
                                         fontWeight: '600'
                                     }}>
-                                        {stockAdjustmentModal.productName}
+                                        {stockAdjustmentModal?.productName || 'N/A'}
                                     </div>
                                 </div>
                                 
@@ -2514,9 +2535,9 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                         background: 'var(--bg-main)',
                                         borderRadius: '8px',
                                         fontWeight: '600',
-                                        color: parseInt(stockAdjustmentModal.currentStock) === 0 ? '#ef4444' : 'var(--text-primary)'
+                                        color: parseInt(stockAdjustmentModal?.currentStock || 0) === 0 ? '#ef4444' : 'var(--text-primary)'
                                     }}>
-                                        {stockAdjustmentModal.currentStock} unités
+                                        {parseInt(stockAdjustmentModal?.currentStock || 0)} unités
                                     </div>
                                 </div>
 
@@ -2574,7 +2595,8 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                         fontWeight: '700',
                                         color: 'var(--primary)'
                                     }}>
-                                        {(parseInt(stockAdjustmentModal.currentStock) || 0) + (parseInt(adjustmentQuantity) || 0)} unités
+                                        {console.log(stockAdjustmentModal, adjustmentQuantity)}
+                                        {(parseInt(stockAdjustmentModal?.currentStock) || 0) + (parseInt(adjustmentQuantity) || 0)} unités
                                     </div>
                                 </div>
                             </div>
