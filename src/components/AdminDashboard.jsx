@@ -8021,6 +8021,8 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                         placeholder="Ex: France"
                                         value={editingSupplier.country || ''}
                                         onChange={(e) => setEditingSupplier({ ...editingSupplier, country: e.target.value })}
+                                        disabled={isSavingSupplier}
+                                        style={{ opacity: isSavingSupplier ? 0.6 : 1, cursor: isSavingSupplier ? 'not-allowed' : 'default' }}
                                     />
                                 </div>
                                 <div className="form-group">
@@ -8030,6 +8032,8 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                         placeholder="Ex: Net 30"
                                         value={editingSupplier.payment_terms || ''}
                                         onChange={(e) => setEditingSupplier({ ...editingSupplier, payment_terms: e.target.value })}
+                                        disabled={isSavingSupplier}
+                                        style={{ opacity: isSavingSupplier ? 0.6 : 1, cursor: isSavingSupplier ? 'not-allowed' : 'default' }}
                                     />
                                 </div>
                             </div>
@@ -8039,8 +8043,9 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                         type="checkbox"
                                         checked={editingSupplier.is_active}
                                         onChange={(e) => setEditingSupplier({ ...editingSupplier, is_active: e.target.checked })}
+                                        disabled={isSavingSupplier}
                                     />
-                                    <span style={{ marginLeft: '8px' }}>Fournisseur actif</span>
+                                    <span style={{ marginLeft: '8px', opacity: isSavingSupplier ? 0.6 : 1 }}>Fournisseur actif</span>
                                 </label>
                             </div>
                         </div>
