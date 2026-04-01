@@ -884,6 +884,8 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
     // Returns Management States
     const [customerReturnSearchQuery, setCustomerReturnSearchQuery] = useState('');
     const [customerReturnStatusFilter, setCustomerReturnStatusFilter] = useState('all');
+    const [customerReturnProductSearch, setCustomerReturnProductSearch] = useState('');
+    const [isCustomerReturnProductSearching, setIsCustomerReturnProductSearching] = useState(false);
     const [newCustomerReturn, setNewCustomerReturn] = useState({ order_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' });
     const [isCreatingCustomerReturn, setIsCreatingCustomerReturn] = useState(false);
     const [editingCustomerReturn, setEditingCustomerReturn] = useState(null);
@@ -891,6 +893,8 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
 
     const [supplierReturnSearchQuery, setSupplierReturnSearchQuery] = useState('');
     const [supplierReturnStatusFilter, setSupplierReturnStatusFilter] = useState('all');
+    const [supplierReturnProductSearch, setSupplierReturnProductSearch] = useState('');
+    const [isSupplierReturnProductSearching, setIsSupplierReturnProductSearching] = useState(false);
     const [newSupplierReturn, setNewSupplierReturn] = useState({ po_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' });
     const [isCreatingSupplierReturn, setIsCreatingSupplierReturn] = useState(false);
     const [editingSupplierReturn, setEditingSupplierReturn] = useState(null);
@@ -3000,7 +3004,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                             </div>
                                         </td>
                                         <td>{po.supplier_name || 'N/A'}</td>
-                                        <td>{po.warehouse?.name || 'N/A'}</td>
+                                        <td>{po.warehouse_id || 'N/A'}</td>
                                         <td className="po-amount">
                                             {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(po.total_amount || 0)}
                                         </td>
@@ -8137,11 +8141,11 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
 
             {/* Create Customer Return Modal */}
             {isCreatingCustomerReturn && (
-                <div className="admin-overlay" onClick={() => { setIsCreatingCustomerReturn(false); setNewCustomerReturn({ order_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' }); }}>
+                <div className="admin-overlay" onClick={() => { setIsCreatingCustomerReturn(false); setNewCustomerReturn({ order_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' }); setCustomerReturnProductSearch(''); setIsCustomerReturnProductSearching(false); }}>
                     <motion.div className="admin-modal large" onClick={(e) => e.stopPropagation()} initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}>
                         <div className="modal-header">
                             <h3><RotateCcw size={20} style={{ marginRight: '10px' }} />Créer un Retour Client</h3>
-                            <button onClick={() => { setIsCreatingCustomerReturn(false); setNewCustomerReturn({ order_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' }); }} className="close-btn">✕</button>
+                            <button onClick={() => { setIsCreatingCustomerReturn(false); setNewCustomerReturn({ order_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' }); setCustomerReturnProductSearch(''); setIsCustomerReturnProductSearching(false); }} className="close-btn">✕</button>
                         </div>
                         <div className="modal-body">
                             <div className="form-group">
@@ -8150,7 +8154,57 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                             </div>
                             <div className="form-group">
                                 <label>Produit *</label>
-                                <input type="text" placeholder="Nom du produit" value={newCustomerReturn.product_id} onChange={(e) => setNewCustomerReturn({ ...newCustomerReturn, product_id: e.target.value })} />
+                                <div style={{ position: 'relative' }}>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Rechercher un produit..." 
+                                        value={customerReturnProductSearch} 
+                                        onChange={(e) => setCustomerReturnProductSearch(e.target.value)}
+                                        onFocus={() => setIsCustomerReturnProductSearching(true)}
+                                        onBlur={() => setTimeout(() => setIsCustomerReturnProductSearching(false), 200)}
+                                        style={{ width: '100%' }}
+                                    />
+                                    {isCustomerReturnProductSearching && customerReturnProductSearch && products?.filter(p => p.name.toLowerCase().includes(customerReturnProductSearch.toLowerCase())).length > 0 && (
+                                        <div style={{
+                                            position: 'absolute',
+                                            top: '100%',
+                                            left: 0,
+                                            right: 0,
+                                            background: 'white',
+                                            border: '1px solid var(--border-color)',
+                                            borderRadius: '4px',
+                                            maxHeight: '200px',
+                                            overflowY: 'auto',
+                                            zIndex: 1000,
+                                            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                                        }}>
+                                            {products.filter(p => p.name.toLowerCase().includes(customerReturnProductSearch.toLowerCase())).map(product => (
+                                                <div
+                                                    key={product.id}
+                                                    onClick={() => {
+                                                        setNewCustomerReturn({ ...newCustomerReturn, product_id: product.id });
+                                                        setCustomerReturnProductSearch(product.name);
+                                                        setIsCustomerReturnProductSearching(false);
+                                                    }}
+                                                    style={{
+                                                        padding: '10px 12px',
+                                                        cursor: 'pointer',
+                                                        borderBottom: '1px solid var(--border-color)',
+                                                        hover: { background: 'var(--bg-hover)' }
+                                                    }}
+                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-hover)'}
+                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                                                >
+                                                    {product.name}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                                <input 
+                                    type="hidden" 
+                                    value={newCustomerReturn.product_id}
+                                />
                             </div>
                             <div className="form-group">
                                 <label>Quantité Retournée *</label>
@@ -8173,11 +8227,13 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                             </div>
                         </div>
                         <div className="modal-footer">
-                            <button onClick={() => { setIsCreatingCustomerReturn(false); setNewCustomerReturn({ order_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' }); }} className="btn-cancel">Annuler</button>
+                            <button onClick={() => { setIsCreatingCustomerReturn(false); setNewCustomerReturn({ order_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' }); setCustomerReturnProductSearch(''); setIsCustomerReturnProductSearching(false); }} className="btn-cancel">Annuler</button>
                             <button onClick={() => {
                                 if (newCustomerReturn.order_id && newCustomerReturn.product_id && newCustomerReturn.quantity_returned > 0 && newCustomerReturn.reason) {
                                     dispatch(createCustomerReturn({ returnData: { ...newCustomerReturn, return_number: `RET-CUS-${Math.floor(Math.random() * 10000)}`, customer_name: 'Client', refund_amount: 0, refund_status: 'pending', status: 'pending', created_at: new Date().toISOString().split('T')[0] }, token: sessionStorage.getItem('token') }));
                                     setNewCustomerReturn({ order_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' });
+                                    setCustomerReturnProductSearch('');
+                                    setIsCustomerReturnProductSearching(false);
                                     setIsCreatingCustomerReturn(false);
                                     showToast('Retour client créé avec succès', 'success');
                                 } else {
@@ -8191,11 +8247,11 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
 
             {/* Create Supplier Return Modal */}
             {isCreatingSupplierReturn && (
-                <div className="admin-overlay" onClick={() => { setIsCreatingSupplierReturn(false); setNewSupplierReturn({ po_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' }); }}>
+                <div className="admin-overlay" onClick={() => { setIsCreatingSupplierReturn(false); setNewSupplierReturn({ po_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' }); setSupplierReturnProductSearch(''); setIsSupplierReturnProductSearching(false); }}>
                     <motion.div className="admin-modal large" onClick={(e) => e.stopPropagation()} initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}>
                         <div className="modal-header">
                             <h3><RotateCcw size={20} style={{ marginRight: '10px' }} />Créer un Retour Fournisseur</h3>
-                            <button onClick={() => { setIsCreatingSupplierReturn(false); setNewSupplierReturn({ po_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' }); }} className="close-btn">✕</button>
+                            <button onClick={() => { setIsCreatingSupplierReturn(false); setNewSupplierReturn({ po_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' }); setSupplierReturnProductSearch(''); setIsSupplierReturnProductSearching(false); }} className="close-btn">✕</button>
                         </div>
                         <div className="modal-body">
                             <div className="form-group">
@@ -8204,7 +8260,57 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                             </div>
                             <div className="form-group">
                                 <label>Produit *</label>
-                                <input type="text" placeholder="Nom du produit" value={newSupplierReturn.product_id} onChange={(e) => setNewSupplierReturn({ ...newSupplierReturn, product_id: e.target.value })} />
+                                <div style={{ position: 'relative' }}>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Rechercher un produit..." 
+                                        value={supplierReturnProductSearch} 
+                                        onChange={(e) => setSupplierReturnProductSearch(e.target.value)}
+                                        onFocus={() => setIsSupplierReturnProductSearching(true)}
+                                        onBlur={() => setTimeout(() => setIsSupplierReturnProductSearching(false), 200)}
+                                        style={{ width: '100%' }}
+                                    />
+                                    {isSupplierReturnProductSearching && supplierReturnProductSearch && products?.filter(p => p.name.toLowerCase().includes(supplierReturnProductSearch.toLowerCase())).length > 0 && (
+                                        <div style={{
+                                            position: 'absolute',
+                                            top: '100%',
+                                            left: 0,
+                                            right: 0,
+                                            background: 'white',
+                                            border: '1px solid var(--border-color)',
+                                            borderRadius: '4px',
+                                            maxHeight: '200px',
+                                            overflowY: 'auto',
+                                            zIndex: 1000,
+                                            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                                        }}>
+                                            {products.filter(p => p.name.toLowerCase().includes(supplierReturnProductSearch.toLowerCase())).map(product => (
+                                                <div
+                                                    key={product.id}
+                                                    onClick={() => {
+                                                        setNewSupplierReturn({ ...newSupplierReturn, product_id: product.id });
+                                                        setSupplierReturnProductSearch(product.name);
+                                                        setIsSupplierReturnProductSearching(false);
+                                                    }}
+                                                    style={{
+                                                        padding: '10px 12px',
+                                                        cursor: 'pointer',
+                                                        borderBottom: '1px solid var(--border-color)',
+                                                        hover: { background: 'var(--bg-hover)' }
+                                                    }}
+                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-hover)'}
+                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                                                >
+                                                    {product.name}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                                <input 
+                                    type="hidden" 
+                                    value={newSupplierReturn.product_id}
+                                />
                             </div>
                             <div className="form-group">
                                 <label>Quantité Retournée *</label>
@@ -8227,11 +8333,13 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                             </div>
                         </div>
                         <div className="modal-footer">
-                            <button onClick={() => { setIsCreatingSupplierReturn(false); setNewSupplierReturn({ po_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' }); }} className="btn-cancel">Annuler</button>
+                            <button onClick={() => { setIsCreatingSupplierReturn(false); setNewSupplierReturn({ po_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' }); setSupplierReturnProductSearch(''); setIsSupplierReturnProductSearching(false); }} className="btn-cancel">Annuler</button>
                             <button onClick={() => {
                                 if (newSupplierReturn.po_id && newSupplierReturn.product_id && newSupplierReturn.quantity_returned > 0 && newSupplierReturn.reason) {
                                     dispatch(createSupplierReturn({ returnData: { ...newSupplierReturn, return_number: `RET-SUP-${Math.floor(Math.random() * 10000)}`, supplier_name: 'Fournisseur', credit_amount: 0, credit_status: 'pending', status: 'pending', created_at: new Date().toISOString().split('T')[0] }, token: sessionStorage.getItem('token') }));
                                     setNewSupplierReturn({ po_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' });
+                                    setSupplierReturnProductSearch('');
+                                    setIsSupplierReturnProductSearching(false);
                                     setIsCreatingSupplierReturn(false);
                                     showToast('Retour fournisseur créé avec succès', 'success');
                                 } else {
