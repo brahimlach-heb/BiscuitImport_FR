@@ -754,6 +754,18 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                     dispatch(getAllPurchaseOrders(token));
                 }
                 break;
+            case 'customerReturns':
+                // Load customer returns data
+                if (token) {
+                    dispatch(getAllCustomerReturns({ token }));
+                }
+                break;
+            case 'supplierReturns':
+                // Load supplier returns data
+                if (token) {
+                    dispatch(getAllSupplierReturns({ token }));
+                }
+                break;
             case 'overview':
                 // Load all data for overview
                 if (token) {
@@ -791,6 +803,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
         brand: '',
         price: '',
         stock: '',
+        stock_securite: '',
         packageUnit: '',
         description: '',
         ingredients: '',
@@ -805,6 +818,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
         brand: '',
         price: '',
         stock: '',
+        stock_securite: '',
         packageUnit: '',
         description: '',
         ingredients: '',
@@ -886,7 +900,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
     const [customerReturnStatusFilter, setCustomerReturnStatusFilter] = useState('all');
     const [customerReturnProductSearch, setCustomerReturnProductSearch] = useState('');
     const [isCustomerReturnProductSearching, setIsCustomerReturnProductSearching] = useState(false);
-    const [newCustomerReturn, setNewCustomerReturn] = useState({ order_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' });
+    const [newCustomerReturn, setNewCustomerReturn] = useState({ order_id: '', product_id: '', quantity_returned: 0, reason: '', return_date: '', notes: '' });
     const [isCreatingCustomerReturn, setIsCreatingCustomerReturn] = useState(false);
     const [editingCustomerReturn, setEditingCustomerReturn] = useState(null);
     const [viewingCustomerReturn, setViewingCustomerReturn] = useState(null);
@@ -1019,6 +1033,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                 brand: fullProduct.brand || fullProduct.marque || '',
                 price: fullProduct.price || '',
                 stock: fullProduct.stock || 0,
+                stock_securite: fullProduct.stock_securite || 0,
                 packageUnit: fullProduct.packageUnit || '',
                 description: fullProduct.description || '',
                 ingredients: fullProduct.ingredients || '',
@@ -1169,7 +1184,44 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
         }
     };
 
+    // ===== RETURN STATUS UPDATE HANDLERS =====
+    const handleUpdateCustomerReturnStatus = async (returnId, newStatus) => {
+        const token = sessionStorage.getItem('token');
+        try {
+            const result = await dispatch(updateReturnStatus({ id: returnId, status: newStatus, token }));
+            
+            if (updateReturnStatus.fulfilled.match(result)) {
+                showToast('Statut du retour mis à jour avec succès', 'success');
+                // Recharger la liste des retours
+                dispatch(getAllCustomerReturns({ token }));
+                // Mettre à jour le state de la modal
+                setViewingCustomerReturn({ ...viewingCustomerReturn, status: newStatus });
+            } else if (updateReturnStatus.rejected.match(result)) {
+                showToast('Erreur lors de la mise à jour du statut', 'error');
+            }
+        } catch (error) {
+            showToast('Erreur lors de la mise à jour du statut', 'error');
+        }
+    };
 
+    const handleUpdateSupplierReturnStatus = async (returnId, newStatus) => {
+        const token = sessionStorage.getItem('token');
+        try {
+            const result = await dispatch(updateSupplierReturnStatus({ id: returnId, status: newStatus, token }));
+            
+            if (updateSupplierReturnStatus.fulfilled.match(result)) {
+                showToast('Statut du retour fournisseur mis à jour avec succès', 'success');
+                // Recharger la liste des retours
+                dispatch(getAllSupplierReturns({ token }));
+                // Mettre à jour le state de la modal
+                setViewingSupplierReturn({ ...viewingSupplierReturn, status: newStatus });
+            } else if (updateSupplierReturnStatus.rejected.match(result)) {
+                showToast('Erreur lors de la mise à jour du statut', 'error');
+            }
+        } catch (error) {
+            showToast('Erreur lors de la mise à jour du statut', 'error');
+        }
+    };
 
     // Validation functions
     const validateUser = () => {
@@ -1378,6 +1430,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                 marque: newProduct.brand,
                 price: parseFloat(newProduct.price),
                 stock: parseInt(newProduct.stock),
+                stock_securite: newProduct.stock_securite ? parseInt(newProduct.stock_securite) : 0,
                 packageUnit: newProduct.packageUnit ? parseInt(newProduct.packageUnit) : null,
                 description: newProduct.description,
                 ingredients: newProduct.ingredients,
@@ -1392,7 +1445,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                 if (createProduct.fulfilled.match(result)) {
                     showToast('Produit créé avec succès');
                     setIsAddingProduct(false);
-                    setNewProduct({ name: '', category: '', brand: '', price: '', stock: '', packageUnit: '', description: '', ingredients: '', is_active: true, flavors: [], role_prices: [] });
+                    setNewProduct({ name: '', category: '', brand: '', price: '', stock: '', stock_securite: '', packageUnit: '', description: '', ingredients: '', is_active: true, flavors: [], role_prices: [] });
                     setProductErrors({});
                 } else {
                     showToast('Erreur lors de l\'ajout du produit', 'error');
@@ -1414,6 +1467,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                 marque: editProduct.brand,
                 price: parseFloat(editProduct.price),
                 stock: parseInt(editProduct.stock),
+                stock_securite: editProduct.stock_securite ? parseInt(editProduct.stock_securite) : 0,
                 packageUnit: editProduct.packageUnit ? parseInt(editProduct.packageUnit) : 1,
                 description: editProduct.description,
                 ingredients: editProduct.ingredients,
@@ -1428,7 +1482,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                 if (updateProduct.fulfilled.match(result)) {
                     showToast('Produit mis à jour avec succès');
                     setIsEditingProduct(null);
-                    setEditProduct({ name: '', category: '', brand: '', price: '', stock: '', packageUnit: '', description: '', ingredients: '', is_active: true, flavors: [], role_prices: [] });
+                    setEditProduct({ name: '', category: '', brand: '', price: '', stock: '', stock_securite: '', packageUnit: '', description: '', ingredients: '', is_active: true, flavors: [], role_prices: [] });
                     setProductErrors({});
                     // Recharger la liste des produits
                     await dispatch(getAllProducts({ category: null, token }));
@@ -4269,13 +4323,13 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
             const matchesSearch = !customerReturnSearchQuery || 
                 r.return_number?.includes(customerReturnSearchQuery) ||
                 r.customer_name?.toLowerCase().includes(customerReturnSearchQuery.toLowerCase()) ||
-                r.product_name?.toLowerCase().includes(customerReturnSearchQuery.toLowerCase());
+                (r.product_name || r.items?.[0]?.product_name || '')?.toLowerCase().includes(customerReturnSearchQuery.toLowerCase());
             const matchesStatus = customerReturnStatusFilter === 'all' || r.status === customerReturnStatusFilter;
             return matchesSearch && matchesStatus;
         });
 
         const approvedReturns = crList.filter(r => r?.status === 'approved').length;
-        const totalRefunds = crList.reduce((sum, r) => sum + (parseFloat(r?.refund_amount) || 0), 0);
+        const totalQuantityReturned = crList.reduce((sum, r) => sum + (parseInt(r?.items?.[0]?.quantity) || 0), 0);
 
         return (
             <motion.div key="customerReturns" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }} className="returns-container">
@@ -4290,8 +4344,8 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                         <div style={{ fontSize: '1.8rem', fontWeight: '700', color: 'var(--primary)' }}>{approvedReturns}</div>
                     </div>
                     <div style={{ background: 'var(--bg-card)', padding: '15px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                        <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Montant Total</div>
-                        <div style={{ fontSize: '1.8rem', fontWeight: '700' }}>{totalRefunds.toFixed(2)} DH</div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Quantité Total</div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: '700' }}>{totalQuantityReturned}</div>
                     </div>
                 </div>
 
@@ -4301,7 +4355,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                         <option value="all">Tous les statuts</option>
                         <option value="pending">En attente</option>
                         <option value="approved">Approuvé</option>
-                        <option value="received">Reçu</option>
+                        <option value="refunded">Remboursé</option>
                     </select>
                     <button className="primary-btn" onClick={() => setIsCreatingCustomerReturn(true)}><Plus size={18} /> Nouveau Retour</button>
                 </div>
@@ -4324,13 +4378,13 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                             <tbody>
                                 {filteredReturns.map((ret, idx) => (
                                     <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                        <td style={{ padding: '10px' }}><strong>{ret.return_number}</strong></td>
-                                        <td style={{ padding: '10px' }}>{ret.customer_name}</td>
-                                        <td style={{ padding: '10px' }}>{ret.product_name}</td>
-                                        <td style={{ padding: '10px' }}>{ret.quantity_returned}</td>
-                                        <td style={{ padding: '10px' }}>{ret.reason}</td>
-                                        <td style={{ padding: '10px' }}><span style={{ display: 'inline-block', padding: '4px 8px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '600', background: ret.status === 'approved' ? '#d1fae5' : ret.status === 'received' ? '#dbeafe' : '#fef3c7', color: ret.status === 'approved' ? '#065f46' : ret.status === 'received' ? '#0c4a6e' : '#78350f' }}>{ret.status}</span></td>
-                                        <td style={{ padding: '10px' }}>{ret.refund_amount.toFixed(2)} DH</td>
+                                        <td style={{ padding: '10px' }}><strong>{ret.return_number || ret.id}</strong></td>
+                                        <td style={{ padding: '10px' }}>{ret.customer_name || ret.order_customer || 'N/A'}</td>
+                                        <td style={{ padding: '10px' }}>{ret.product_name || (ret.items?.[0]?.product_name) || ret.product_id || 'N/A'}</td>
+                                        <td style={{ padding: '10px' }}>{ret.items?.[0]?.quantity || 3}</td>
+                                        <td style={{ padding: '10px' }}>{ret.reason || ret.return_reason || 'N/A'}</td>
+                                        <td style={{ padding: '10px' }}><span style={{ display: 'inline-block', padding: '4px 8px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '600', background: ret.status === 'approved' ? '#d1fae5' : ret.status === 'refunded' ? '#dbeafe' : '#fef3c7', color: ret.status === 'approved' ? '#065f46' : ret.status === 'refunded' ? '#0c4a6e' : '#78350f' }}>{ret.status}</span></td>
+                                        <td style={{ padding: '10px' }}>{(parseFloat(ret.refund_amount) || 0).toFixed(2)} DH</td>
                                         <td style={{ padding: '10px' }}><button className="warehouse-action-btn" onClick={() => setViewingCustomerReturn(ret)}><Eye size={16} /> Voir</button></td>
                                     </tr>
                                 ))}
@@ -4352,13 +4406,13 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
             const matchesSearch = !supplierReturnSearchQuery || 
                 r.return_number?.includes(supplierReturnSearchQuery) ||
                 r.supplier_name?.toLowerCase().includes(supplierReturnSearchQuery.toLowerCase()) ||
-                r.product_name?.toLowerCase().includes(supplierReturnSearchQuery.toLowerCase());
+                (r.product_name || r.items?.[0]?.product_name || '')?.toLowerCase().includes(supplierReturnSearchQuery.toLowerCase());
             const matchesStatus = supplierReturnStatusFilter === 'all' || r.status === supplierReturnStatusFilter;
             return matchesSearch && matchesStatus;
         });
 
-        const sentReturns = srList.filter(r => r?.status === 'sent').length;
-        const totalCredits = srList.reduce((sum, r) => sum + (parseFloat(r?.credit_amount) || 0), 0);
+        const approvedReturns = srList.filter(r => r?.status === 'approved').length;
+        const totalQuantityReturned = srList.reduce((sum, r) => sum + (parseInt(r?.quantity) || parseInt(r?.items?.[0]?.quantity) || 0), 0);
 
         return (
             <motion.div key="supplierReturns" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }} className="returns-container">
@@ -4369,12 +4423,12 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                         <div style={{ fontSize: '1.8rem', fontWeight: '700' }}>{srList.length}</div>
                     </div>
                     <div style={{ background: 'var(--bg-card)', padding: '15px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                        <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Envoyés</div>
-                        <div style={{ fontSize: '1.8rem', fontWeight: '700', color: 'var(--primary)' }}>{sentReturns}</div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Approuvés</div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: '700', color: 'var(--primary)' }}>{approvedReturns}</div>
                     </div>
                     <div style={{ background: 'var(--bg-card)', padding: '15px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                        <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Montant Total</div>
-                        <div style={{ fontSize: '1.8rem', fontWeight: '700' }}>{totalCredits.toFixed(2)} DH</div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Quantité Total</div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: '700' }}>{totalQuantityReturned}</div>
                     </div>
                 </div>
 
@@ -4401,20 +4455,18 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                     <th style={{ padding: '10px', textAlign: 'left' }}>Quantité</th>
                                     <th style={{ padding: '10px', textAlign: 'left' }}>Raison</th>
                                     <th style={{ padding: '10px', textAlign: 'left' }}>Statut</th>
-                                    <th style={{ padding: '10px', textAlign: 'left' }}>Crédit</th>
                                     <th style={{ padding: '10px', textAlign: 'left' }}>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {filteredReturns.map((ret, idx) => (
                                     <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                        <td style={{ padding: '10px' }}><strong>{ret.return_number}</strong></td>
-                                        <td style={{ padding: '10px' }}>{ret.supplier_name}</td>
-                                        <td style={{ padding: '10px' }}>{ret.product_name}</td>
-                                        <td style={{ padding: '10px' }}>{ret.quantity_returned}</td>
-                                        <td style={{ padding: '10px' }}>{ret.reason}</td>
+                                        <td style={{ padding: '10px' }}><strong>{ret.return_number || ret.id}</strong></td>
+                                        <td style={{ padding: '10px' }}>{ret.supplier_name || 'N/A'}</td>
+                                        <td style={{ padding: '10px' }}>{ret.product_name || (ret.items?.[0]?.product_name) || ret.product_id || 'N/A'}</td>
+                                        <td style={{ padding: '10px' }}>{console.log(ret)}{ret.quantity || (ret.items?.[0]?.quantity) || 'N/A'}</td>
+                                        <td style={{ padding: '10px' }}>{ret.reason || ret.return_reason || 'N/A'}</td>
                                         <td style={{ padding: '10px' }}><span style={{ display: 'inline-block', padding: '4px 8px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '600', background: ret.status === 'sent' ? '#bfdbfe' : ret.status === 'received' ? '#d1fae5' : '#fef3c7', color: ret.status === 'sent' ? '#1e3a8a' : ret.status === 'received' ? '#065f46' : '#78350f' }}>{ret.status}</span></td>
-                                        <td style={{ padding: '10px' }}>{ret.credit_amount.toFixed(2)} DH</td>
                                         <td style={{ padding: '10px' }}><button className="warehouse-action-btn" onClick={() => setViewingSupplierReturn(ret)}><Eye size={16} /> Voir</button></td>
                                     </tr>
                                 ))}
@@ -4899,7 +4951,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
             {isEditingProduct && (
                 <div className="admin-overlay" onClick={() => {
                     setIsEditingProduct(null);
-                    setEditProduct({ name: '', category: '', brand: '', price: '', stock: '', description: '', ingredients: '', is_active: true, flavors: [], role_prices: [] });
+                    setEditProduct({ name: '', category: '', brand: '', price: '', stock: '', stock_securite: '', description: '', ingredients: '', is_active: true, flavors: [], role_prices: [] });
                     setProductErrors({});
                 }}>
                     <motion.div
@@ -4912,7 +4964,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                             <h2><Package size={22} style={{ display: 'inline', marginRight: '10px' }} />Modifier le Produit</h2>
                             <button className="close-btn" onClick={() => {
                                 setIsEditingProduct(null);
-                                setEditProduct({ name: '', category: '', brand: '', price: '', stock: '', description: '', ingredients: '', is_active: true, flavors: [], role_prices: [] });
+                                setEditProduct({ name: '', category: '', brand: '', price: '', stock: '', stock_securite: '', description: '', ingredients: '', is_active: true, flavors: [], role_prices: [] });
                                 setProductErrors({});
                             }}><X size={20} /></button>
                         </div>
@@ -4978,6 +5030,15 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                         className={productErrors.stock ? 'error' : ''}
                                     />
                                     {productErrors.stock && <span className="error-text">{productErrors.stock}</span>}
+                                </div>
+                                <div className="form-group">
+                                    <label>Stock de Sécurité</label>
+                                    <input
+                                        type="number"
+                                        placeholder="Stock minimum à maintenir"
+                                        value={editProduct.stock_securite}
+                                        onChange={(e) => setEditProduct({ ...editProduct, stock_securite: e.target.value })}
+                                    />
                                 </div>
                                 <div className="form-group">
                                     <label>Unité d'emballage</label>
@@ -5445,7 +5506,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                             <h2><Package size={22} style={{ display: 'inline', marginRight: '10px' }} />Nouveau Produit</h2>
                             <button className="close-btn" onClick={() => {
                                 setIsAddingProduct(false);
-                                setNewProduct({ name: '', category: '', brand: '', stock: '', description: '', is_active: true, flavors: [], role_prices: [] });
+                                setNewProduct({ name: '', category: '', brand: '', price: '', stock: '', stock_securite: '', packageUnit: '', description: '', ingredients: '', is_active: true, flavors: [], role_prices: [] });
                                 setProductErrors({});
                             }}><X size={20} /></button>
                         </div>
@@ -5663,7 +5724,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                         <div className="modal-footer">
                             <button className="cancel-pill-btn" onClick={() => {
                                 setIsAddingProduct(false);
-                                setNewProduct({ name: '', category: '', brand: '', stock: '', description: '', is_active: true, flavors: [], role_prices: [] });
+                                setNewProduct({ name: '', category: '', brand: '', price: '', stock: '', stock_securite: '', packageUnit: '', description: '', ingredients: '', is_active: true, flavors: [], role_prices: [] });
                                 setProductErrors({});
                             }}>Annuler</button>
                             <button className="save-pill-btn" onClick={handleAddProduct} disabled={isProductLoading}>
@@ -8141,11 +8202,11 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
 
             {/* Create Customer Return Modal */}
             {isCreatingCustomerReturn && (
-                <div className="admin-overlay" onClick={() => { setIsCreatingCustomerReturn(false); setNewCustomerReturn({ order_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' }); setCustomerReturnProductSearch(''); setIsCustomerReturnProductSearching(false); }}>
+                <div className="admin-overlay" onClick={() => { setIsCreatingCustomerReturn(false); setNewCustomerReturn({ order_id: '', product_id: '', quantity_returned: 0, reason: '', return_date: '', notes: '' }); setCustomerReturnProductSearch(''); setIsCustomerReturnProductSearching(false); }}>
                     <motion.div className="admin-modal large" onClick={(e) => e.stopPropagation()} initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}>
                         <div className="modal-header">
                             <h3><RotateCcw size={20} style={{ marginRight: '10px' }} />Créer un Retour Client</h3>
-                            <button onClick={() => { setIsCreatingCustomerReturn(false); setNewCustomerReturn({ order_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' }); setCustomerReturnProductSearch(''); setIsCustomerReturnProductSearching(false); }} className="close-btn">✕</button>
+                            <button onClick={() => { setIsCreatingCustomerReturn(false); setNewCustomerReturn({ order_id: '', product_id: '', quantity_returned: 0, reason: '', return_date: '', notes: '' }); setCustomerReturnProductSearch(''); setIsCustomerReturnProductSearching(false); }} className="close-btn">✕</button>
                         </div>
                         <div className="modal-body">
                             <div className="form-group">
@@ -8211,6 +8272,10 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                 <input type="number" min="1" value={newCustomerReturn.quantity_returned} onChange={(e) => setNewCustomerReturn({ ...newCustomerReturn, quantity_returned: parseInt(e.target.value) || 0 })} />
                             </div>
                             <div className="form-group">
+                                <label>Date du Retour</label>
+                                <input type="date" value={newCustomerReturn.return_date} onChange={(e) => setNewCustomerReturn({ ...newCustomerReturn, return_date: e.target.value })} />
+                            </div>
+                            <div className="form-group">
                                 <label>Raison du Retour *</label>
                                 <select value={newCustomerReturn.reason} onChange={(e) => setNewCustomerReturn({ ...newCustomerReturn, reason: e.target.value })}>
                                     <option value="">Sélectionner une raison</option>
@@ -8227,11 +8292,11 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                             </div>
                         </div>
                         <div className="modal-footer">
-                            <button onClick={() => { setIsCreatingCustomerReturn(false); setNewCustomerReturn({ order_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' }); setCustomerReturnProductSearch(''); setIsCustomerReturnProductSearching(false); }} className="btn-cancel">Annuler</button>
+                            <button onClick={() => { setIsCreatingCustomerReturn(false); setNewCustomerReturn({ order_id: '', product_id: '', quantity_returned: 0, reason: '', return_date: '', notes: '' }); setCustomerReturnProductSearch(''); setIsCustomerReturnProductSearching(false); }} className="btn-cancel">Annuler</button>
                             <button onClick={() => {
                                 if (newCustomerReturn.order_id && newCustomerReturn.product_id && newCustomerReturn.quantity_returned > 0 && newCustomerReturn.reason) {
                                     dispatch(createCustomerReturn({ returnData: { ...newCustomerReturn, return_number: `RET-CUS-${Math.floor(Math.random() * 10000)}`, customer_name: 'Client', refund_amount: 0, refund_status: 'pending', status: 'pending', created_at: new Date().toISOString().split('T')[0] }, token: sessionStorage.getItem('token') }));
-                                    setNewCustomerReturn({ order_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' });
+                                    setNewCustomerReturn({ order_id: '', product_id: '', quantity_returned: 0, reason: '', return_date: '', notes: '' });
                                     setCustomerReturnProductSearch('');
                                     setIsCustomerReturnProductSearching(false);
                                     setIsCreatingCustomerReturn(false);
@@ -8254,10 +8319,6 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                             <button onClick={() => { setIsCreatingSupplierReturn(false); setNewSupplierReturn({ po_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' }); setSupplierReturnProductSearch(''); setIsSupplierReturnProductSearching(false); }} className="close-btn">✕</button>
                         </div>
                         <div className="modal-body">
-                            <div className="form-group">
-                                <label>Numéro de Commande Achat *</label>
-                                <input type="text" placeholder="ex: PO-001" value={newSupplierReturn.po_id} onChange={(e) => setNewSupplierReturn({ ...newSupplierReturn, po_id: e.target.value })} />
-                            </div>
                             <div className="form-group">
                                 <label>Produit *</label>
                                 <div style={{ position: 'relative' }}>
@@ -8363,11 +8424,11 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
                                 <div>
                                     <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '5px' }}>Numéro Retour</div>
-                                    <div style={{ fontSize: '1.1rem', fontWeight: '600' }}>{viewingCustomerReturn.return_number}</div>
+                                    <div style={{ fontSize: '1.1rem', fontWeight: '600' }}>{viewingCustomerReturn.return_number} (ID: {viewingCustomerReturn.id})</div>
                                 </div>
                                 <div>
                                     <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '5px' }}>Client</div>
-                                    <div style={{ fontSize: '1.1rem', fontWeight: '600' }}>{viewingCustomerReturn.customer_name}</div>
+                                    <div style={{ fontSize: '1.1rem', fontWeight: '600' }}>{viewingCustomerReturn.order_customer}</div>
                                 </div>
                                 <div>
                                     <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '5px' }}>Commande</div>
@@ -8384,29 +8445,15 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
                                     <div>
                                         <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Nom</div>
-                                        <div style={{ fontWeight: '600' }}>{viewingCustomerReturn.product_name}</div>
+                                        <div style={{ fontWeight: '600' }}>{viewingCustomerReturn.product_name || (viewingCustomerReturn.items?.[0]?.product_name) || viewingCustomerReturn.product_id || 'N/A'}</div>
                                     </div>
                                     <div>
                                         <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Quantité</div>
-                                        <div style={{ fontWeight: '600' }}>{viewingCustomerReturn.quantity_returned}</div>
+                                        <div style={{ fontWeight: '600' }}>{viewingCustomerReturn.items?.[0]?.quantity || 0}</div>
                                     </div>
                                     <div>
                                         <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Raison</div>
-                                        <div style={{ fontWeight: '600' }}>{viewingCustomerReturn.reason}</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '15px', marginBottom: '15px' }}>
-                                <h4 style={{ marginBottom: '10px' }}>Remboursement</h4>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                                    <div>
-                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Montant</div>
-                                        <div style={{ fontSize: '1.2rem', fontWeight: '700', color: 'var(--primary)' }}>{viewingCustomerReturn.refund_amount.toFixed(2)} DH</div>
-                                    </div>
-                                    <div>
-                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Statut Remboursement</div>
-                                        <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '600', background: viewingCustomerReturn.refund_status === 'processed' ? '#d1fae5' : '#fef3c7', color: viewingCustomerReturn.refund_status === 'processed' ? '#065f46' : '#78350f' }}>{viewingCustomerReturn.refund_status}</span>
+                                        <div style={{ fontWeight: '600' }}>{viewingCustomerReturn.reason || viewingCustomerReturn.return_reason || 'N/A'}</div>
                                     </div>
                                 </div>
                             </div>
@@ -8432,10 +8479,10 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                             </div>
                         </div>
                         <div className="modal-footer">
-                            <select value={viewingCustomerReturn.status} onChange={(e) => setViewingCustomerReturn({ ...viewingCustomerReturn, status: e.target.value })} style={{ padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                            <select value={viewingCustomerReturn.status} onChange={(e) => handleUpdateCustomerReturnStatus(viewingCustomerReturn.id, e.target.value)} style={{ padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                                 <option value="pending">En attente</option>
                                 <option value="approved">Approuvé</option>
-                                <option value="received">Reçu</option>
+                                <option value="refunded">Remboursé</option>
                             </select>
                             <button onClick={() => setViewingCustomerReturn(null)} className="btn-cancel">Fermer</button>
                         </div>
@@ -8455,15 +8502,11 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
                                 <div>
                                     <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '5px' }}>Numéro Retour</div>
-                                    <div style={{ fontSize: '1.1rem', fontWeight: '600' }}>{viewingSupplierReturn.return_number}</div>
+                                    <div style={{ fontSize: '1.1rem', fontWeight: '600' }}>{viewingSupplierReturn.return_number} (ID: {viewingSupplierReturn.id})</div>
                                 </div>
                                 <div>
                                     <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '5px' }}>Fournisseur</div>
                                     <div style={{ fontSize: '1.1rem', fontWeight: '600' }}>{viewingSupplierReturn.supplier_name}</div>
-                                </div>
-                                <div>
-                                    <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '5px' }}>Commande Achat</div>
-                                    <div style={{ fontSize: '1.1rem', fontWeight: '600' }}>{viewingSupplierReturn.po_id}</div>
                                 </div>
                                 <div>
                                     <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '5px' }}>Statut</div>
@@ -8476,29 +8519,15 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
                                     <div>
                                         <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Nom</div>
-                                        <div style={{ fontWeight: '600' }}>{viewingSupplierReturn.product_name}</div>
+                                        <div style={{ fontWeight: '600' }}>{viewingSupplierReturn.product_name || (viewingSupplierReturn.items?.[0]?.product_name) || viewingSupplierReturn.product_id || 'N/A'}</div>
                                     </div>
                                     <div>
                                         <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Quantité</div>
-                                        <div style={{ fontWeight: '600' }}>{viewingSupplierReturn.quantity_returned}</div>
+                                        <div style={{ fontWeight: '600' }}>{viewingSupplierReturn.items?.[0]?.quantity || 0}</div>
                                     </div>
                                     <div>
                                         <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Raison</div>
-                                        <div style={{ fontWeight: '600' }}>{viewingSupplierReturn.reason}</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '15px', marginBottom: '15px' }}>
-                                <h4 style={{ marginBottom: '10px' }}>Crédit Fournisseur</h4>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                                    <div>
-                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Montant</div>
-                                        <div style={{ fontSize: '1.2rem', fontWeight: '700', color: 'var(--primary)' }}>{viewingSupplierReturn.credit_amount.toFixed(2)} DH</div>
-                                    </div>
-                                    <div>
-                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Statut Crédit</div>
-                                        <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '600', background: viewingSupplierReturn.credit_status === 'processed' ? '#d1fae5' : '#fef3c7', color: viewingSupplierReturn.credit_status === 'processed' ? '#065f46' : '#78350f' }}>{viewingSupplierReturn.credit_status}</span>
+                                        <div style={{ fontWeight: '600' }}>{viewingSupplierReturn.reason || viewingSupplierReturn.return_reason || 'N/A'}</div>
                                     </div>
                                 </div>
                             </div>
@@ -8524,11 +8553,11 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                             </div>
                         </div>
                         <div className="modal-footer">
-                            <select value={viewingSupplierReturn.status} onChange={(e) => setViewingSupplierReturn({ ...viewingSupplierReturn, status: e.target.value })} style={{ padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                            <select value={viewingSupplierReturn.status} onChange={(e) => handleUpdateSupplierReturnStatus(viewingSupplierReturn.id, e.target.value)} style={{ padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                                 <option value="pending">En attente</option>
                                 <option value="approved">Approuvé</option>
-                                <option value="sent">Envoyé</option>
-                                <option value="received">Reçu</option>
+                                <option value="credited">Crédité</option>
+                                <option value="rejected">Rejeté</option>
                             </select>
                             <button onClick={() => setViewingSupplierReturn(null)} className="btn-cancel">Fermer</button>
                         </div>

@@ -1202,6 +1202,41 @@
     gap: 15px;
 }
 
+/* Option Styling */
+select option {
+    padding: 8px 12px;
+}
+
+select option[value="refunded"] {
+    background: linear-gradient(#dbeafe, #dbeafe);
+    background-color: #dbeafe;
+    color: #0c4a6e;
+}
+
+select option[value="credited"] {
+    background: linear-gradient(#d1fae5, #d1fae5);
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+select option[value="approved"] {
+    background: linear-gradient(#d1fae5, #d1fae5);
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+select option[value="pending"] {
+    background: linear-gradient(#fef3c7, #fef3c7);
+    background-color: #fef3c7;
+    color: #78350f;
+}
+
+select option[value="rejected"] {
+    background: linear-gradient(#fee2e2, #fee2e2);
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
 .close-btn {
     background: var(--bg-main);
     border: 1px solid var(--border-color);
