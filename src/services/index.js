@@ -7,3 +7,8 @@ export { historyService } from './historyService';
 export { userService } from './userService';
 export { roleService } from './roleService';
 export { bankService } from './bankService';
+export { stockService } from './stockService';
+export { warehouseService } from './warehouseService';
+export { supplierService } from './supplierService';
+export { purchaseOrderService } from './purchaseOrderService';
+export { returnService } from './returnService';

@@ -3,10 +3,9 @@ import { productService } from '../../services/productService';
 
 export const getAllProducts = createAsyncThunk(
   'product/getAllProducts',
-  async ({ category, token }, { rejectWithValue }) => {
+  async ({ category, token, product_type }, { rejectWithValue }) => {
     try {
-      // Correction: token doit être le premier argument, category le second
-      const response = await productService.getAllProducts(token, category);
+      const response = await productService.getAllProducts(token, category, product_type);
       return response;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -124,8 +123,8 @@ const productSlice = createSlice({
       })
       .addCase(updateProduct.fulfilled, (state, action) => {
         state.loading = false;
-        if (action.payload) {
-          const index = state.products.findIndex(p => p.id === action.payload.id);
+        if (action.payload && action.payload.id) {
+          const index = state.products.findIndex(p => p && p.id === action.payload.id);
           if (index !== -1) {
             state.products[index] = action.payload;
           }

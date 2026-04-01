@@ -1,11 +1,17 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 export const productService = {
-  async getAllProducts(token, category = null) {
+  async getAllProducts(token, category = null, product_type = null) {
     let url = `${API_BASE_URL}/api/products`;
-    // Swagger: category est un paramètre de query string optionnel
+    const params = [];
     if (category !== null && category !== undefined && category !== "") {
-      url += `?category=${encodeURIComponent(category)}`;
+      params.push(`category=${encodeURIComponent(category)}`);
+    }
+    if (product_type !== null && product_type !== undefined && product_type !== "") {
+      params.push(`product_type=${encodeURIComponent(product_type)}`);
+    }
+    if (params.length > 0) {
+      url += `?${params.join('&')}`;
     }
     const response = await fetch(url, {
       method: 'GET',

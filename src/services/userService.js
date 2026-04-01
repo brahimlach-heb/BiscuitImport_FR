@@ -1,5 +1,7 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
+export const USER_TYPES = ['candy', 'ams', 'both'];
+
 export const userService = {
   async getAllUsers(token) {
     const response = await fetch(`${API_BASE_URL}/api/users`, {
@@ -10,6 +12,25 @@ export const userService = {
     });
     if (!response.ok) {
       throw new Error('Failed to get users');
+    }
+    return response.json();
+  },
+
+  async createUser(userData, token) {
+    // userData must include user_type: 'candy' | 'ams' | 'both'
+    if (!USER_TYPES.includes(userData.user_type)) {
+      throw new Error('Invalid user_type. Must be candy, ams, or both');
+    }
+    const response = await fetch(`${API_BASE_URL}/api/users`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(userData),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to create user');
     }
     return response.json();
   },

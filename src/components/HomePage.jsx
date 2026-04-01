@@ -629,15 +629,16 @@ const HomePage = ({ onLogout }) => {
     const products = isDemoMode ? PRODUCTS : reduxProducts;
     const categories = isDemoMode ? CATEGORIES : reduxCategories;
 
-    // Log pour debug
+    // Log pour debug - optimisé pour éviter les re-renders inutiles
     useEffect(() => {
+        console.log('🏠 HomePage - Utilisateur actuel:', user);
         console.log('🏠 HomePage - Mode:', isDemoMode ? 'DEMO' : 'API');
         console.log('🏠 HomePage - Nombre de produits:', products.length);
         if (products.length > 0 && !isDemoMode) {
             console.log('🏠 HomePage - Exemple de produit API:', products[0]);
             console.log('🏠 HomePage - Flavors du produit:', products[0]?.flavors);
         }
-    }, [products, isDemoMode]);
+    }, [user?.id, isDemoMode, products?.length]);
 
     // Theme State
     const [theme, setTheme] = useState(() => {
@@ -694,9 +695,13 @@ const HomePage = ({ onLogout }) => {
     // Fetch initial data
     useEffect(() => {
         const token = sessionStorage.getItem('token');
+        let product_type = null;
+        if (user && user.user_type) {
+            product_type = user.user_type;
+        }
         if (token) {
             dispatch(getProfile(token));
-            dispatch(getAllProducts({ category: null, token })).then((result) => {
+            dispatch(getAllProducts({ category: null, token, product_type })).then((result) => {
                 console.log('🔍 HomePage - Produits récupérés:', result.payload);
                 if (result.payload && result.payload.length > 0) {
                     console.log('🔍 Premier produit:', result.payload[0]);
@@ -706,18 +711,22 @@ const HomePage = ({ onLogout }) => {
             dispatch(getAllCategories(token));
             dispatch(getAllRoles(token));
         }
-    }, [dispatch]);
+    }, []); // Charger une seule fois au montage
 
     // Fetch products when category changes
     useEffect(() => {
         const token = sessionStorage.getItem('token');
+        let product_type = null;
+        if (user && user.user_type) {
+            product_type = user.user_type;
+        }
         if (token && !isDemoMode) {
             console.log('🔄 Récupération des produits pour la catégorie:', selectedCategory);
-            dispatch(getAllProducts({ category: selectedCategory, token })).then((result) => {
+            dispatch(getAllProducts({ category: selectedCategory, token, product_type })).then((result) => {
                 console.log('✅ Produits récupérés pour catégorie', selectedCategory, ':', result.payload?.length || 0);
             });
         }
-    }, [selectedCategory, dispatch, isDemoMode]);
+    }, [selectedCategory, dispatch, isDemoMode, user]);
 
     const handleNavigate = (view) => {
         setIsLoading(true);

@@ -1,0 +1,403 @@
+/* Warehouse Management Styles */
+
+.warehouse-container,
+.supplier-container {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.warehouse-header,
+.supplier-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.warehouse-header h2,
+.supplier-header h2 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.warehouse-actions,
+.supplier-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.warehouse-actions button,
+.supplier-actions button {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.warehouse-actions .primary-btn,
+.supplier-actions .primary-btn {
+    background: linear-gradient(135deg, var(--primary), #d4af37);
+    color: white;
+}
+
+.warehouse-actions .primary-btn:hover,
+.supplier-actions .primary-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(212, 175, 55, 0.3);
+}
+
+/* Warehouse Cards */
+.warehouse-summary,
+.supplier-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.warehouse-card,
+.supplier-card {
+    background: var(--bg-container);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: all 0.3s ease;
+}
+
+.warehouse-card:hover,
+.supplier-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(212, 175, 55, 0.15);
+}
+
+.warehouse-card-label,
+.supplier-card-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.warehouse-card-value,
+.supplier-card-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.warehouse-card-change,
+.supplier-card-change {
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.warehouse-card-change.positive,
+.supplier-card-change.positive {
+    color: #10b981;
+}
+
+.warehouse-card-change.negative,
+.supplier-card-change.negative {
+    color: #ef4444;
+}
+
+/* Warehouse/Supplier Table */
+.warehouse-table-container,
+.supplier-table-container {
+    background: var(--bg-container);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.warehouse-filters,
+.supplier-filters {
+    display: flex;
+    gap: 12px;
+    padding: 16px;
+    border-bottom: 1px solid var(--border-color);
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.warehouse-filters input,
+.warehouse-filters select,
+.supplier-filters input,
+.supplier-filters select {
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-main);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    flex: 1;
+    min-width: 150px;
+}
+
+.warehouse-filters input:focus,
+.warehouse-filters select:focus,
+.supplier-filters input:focus,
+.supplier-filters select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+}
+
+.warehouse-table,
+.supplier-table {
+    width: 100%;
+    border-collapse: collapse;
+    overflow-x: auto;
+}
+
+.warehouse-table thead,
+.supplier-table thead {
+    background: var(--bg-main);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.warehouse-table th,
+.supplier-table th {
+    padding: 16px;
+    text-align: left;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.warehouse-table tbody tr,
+.supplier-table tbody tr {
+    border-bottom: 1px solid var(--border-color);
+    transition: background-color 0.2s ease;
+}
+
+.warehouse-table tbody tr:hover,
+.supplier-table tbody tr:hover {
+    background-color: rgba(212, 175, 55, 0.05);
+}
+
+.warehouse-table td,
+.supplier-table td {
+    padding: 16px;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.warehouse-info,
+.supplier-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.warehouse-icon,
+.supplier-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--primary), #d4af37);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+}
+
+.warehouse-name,
+.supplier-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.warehouse-location,
+.supplier-contact {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.warehouse-actions-cell,
+.supplier-actions-cell {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.warehouse-action-btn,
+.supplier-action-btn {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 6px;
+    background: var(--bg-main);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.warehouse-action-btn:hover,
+.supplier-action-btn:hover {
+    background: var(--primary);
+    color: white;
+}
+
+/* Status Badge */
+.status-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.status-badge.active {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+.status-badge.inactive {
+    background: rgba(107, 114, 128, 0.1);
+    color: #6b7280;
+}
+
+/* Empty State */
+.warehouse-empty,
+.supplier-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+}
+
+.warehouse-empty-icon,
+.supplier-empty-icon {
+    font-size: 3rem;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.warehouse-empty p,
+.supplier-empty p {
+    margin: 0;
+    font-size: 1.05rem;
+}
+
+/* Modal Form */
+.warehouse-form,
+.supplier-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.warehouse-form .form-row,
+.supplier-form .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.warehouse-form .form-group,
+.supplier-form .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.warehouse-form label,
+.supplier-form label {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.warehouse-form input,
+.warehouse-form textarea,
+.warehouse-form select,
+.supplier-form input,
+.supplier-form textarea,
+.supplier-form select {
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-main);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-family: inherit;
+}
+
+.warehouse-form input:focus,
+.warehouse-form textarea:focus,
+.warehouse-form select:focus,
+.supplier-form input:focus,
+.supplier-form textarea:focus,
+.supplier-form select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .warehouse-table,
+    .supplier-table {
+        font-size: 0.85rem;
+    }
+
+    .warehouse-table th,
+    .warehouse-table td,
+    .supplier-table th,
+    .supplier-table td {
+        padding: 12px 8px;
+    }
+
+    .warehouse-form .form-row,
+    .supplier-form .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .warehouse-actions,
+    .supplier-actions {
+        width: 100%;
+    }
+
+    .warehouse-actions button,
+    .supplier-actions button {
+        flex: 1;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .warehouse-header h2,
+    .supplier-header h2 {
+        font-size: 1.4rem;
+    }
+
+    .warehouse-summary,
+    .supplier-summary {
+        grid-template-columns: 1fr;
+    }
+}

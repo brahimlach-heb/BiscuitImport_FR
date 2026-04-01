@@ -93,9 +93,11 @@ const bankSlice = createSlice({
       })
       .addCase(updateBank.fulfilled, (state, action) => {
         state.loading = false;
-        const index = state.banks.findIndex(b => b.id === action.payload.id);
-        if (index !== -1) {
-          state.banks[index] = action.payload;
+        if (action.payload && action.payload.id) {
+          const index = state.banks.findIndex(b => b && b.id === action.payload.id);
+          if (index !== -1) {
+            state.banks[index] = action.payload;
+          }
         }
       })
       .addCase(updateBank.rejected, (state, action) => {

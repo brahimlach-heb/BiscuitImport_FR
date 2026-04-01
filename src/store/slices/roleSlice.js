@@ -156,9 +156,11 @@ const roleSlice = createSlice({
         if (!Array.isArray(state.roles)) {
           state.roles = [];
         }
-        const index = state.roles.findIndex(role => role.id === action.payload.id);
-        if (index !== -1) {
-          state.roles[index] = action.payload;
+        if (action.payload && action.payload.id) {
+          const index = state.roles.findIndex(role => role && role.id === action.payload.id);
+          if (index !== -1) {
+            state.roles[index] = action.payload;
+          }
         }
       })
       .addCase(updateRole.rejected, (state, action) => {

@@ -121,12 +121,14 @@ const categorySlice = createSlice({
       })
       .addCase(updateCategory.fulfilled, (state, action) => {
         state.loading = false;
-        const index = state.categories.findIndex(cat => cat.id === action.payload.id);
-        if (index !== -1) {
-          state.categories[index] = action.payload;
-        }
-        if (state.currentCategory && state.currentCategory.id === action.payload.id) {
-          state.currentCategory = action.payload;
+        if (action.payload && action.payload.id) {
+          const index = state.categories.findIndex(cat => cat && cat.id === action.payload.id);
+          if (index !== -1) {
+            state.categories[index] = action.payload;
+          }
+          if (state.currentCategory && state.currentCategory.id === action.payload.id) {
+            state.currentCategory = action.payload;
+          }
         }
       })
       .addCase(updateCategory.rejected, (state, action) => {

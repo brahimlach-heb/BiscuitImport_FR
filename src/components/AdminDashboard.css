@@ -1972,6 +1972,16 @@ textarea.error {
     transition: all 0.2s ease;
 }
 
+/* Loading Animation */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 .view-toggle-btn:hover {
     background: var(--bg-card);
     color: var(--text-main);

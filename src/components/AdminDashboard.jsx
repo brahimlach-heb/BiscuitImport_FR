@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { productService, categoryService, userService, orderService, authService, roleService, bankService } from '../services';
+import { productService, categoryService, userService, orderService, authService, roleService, bankService, stockService, warehouseService, supplierService, purchaseOrderService, returnService } from '../services';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
@@ -28,6 +28,57 @@ import {
     updateBank as updateBankThunk,
     deleteBank as deleteBankThunk
 } from '../store/slices/bankSlice';
+import {
+    getAllStocks,
+    adjustStock,
+    getStockMovements,
+    getLowStockAlerts,
+    getStockReport
+} from '../store/slices/stockSlice';
+import {
+    getAllWarehouses,
+    createWarehouse,
+    updateWarehouse,
+    deleteWarehouse,
+    getWarehouseStock,
+    transferBetweenWarehouses
+} from '../store/slices/warehouseSlice';
+import {
+    getAllSuppliers,
+    createSupplier,
+    updateSupplier,
+    deleteSupplier,
+    getSupplierProducts
+} from '../store/slices/supplierSlice';
+import {
+    getAllPurchaseOrders,
+    getPurchaseOrderById,
+    createPurchaseOrder,
+    updatePurchaseOrder,
+    deletePurchaseOrder,
+    addPurchaseOrderLine,
+    removePurchaseOrderLine,
+    updatePurchaseOrderStatus,
+    receivePurchaseOrder,
+    getPurchaseOrderHistory,
+    resetCurrentPurchaseOrder
+} from '../store/slices/purchaseOrderSlice';
+import {
+    getAllCustomerReturns,
+    createCustomerReturn,
+    updateCustomerReturn,
+    deleteCustomerReturn,
+    updateReturnStatus,
+    processReturnRefund,
+    getAllSupplierReturns,
+    createSupplierReturn,
+    updateSupplierReturn,
+    deleteSupplierReturn,
+    updateSupplierReturnStatus,
+    processSupplierCredit,
+    resetCurrentCustomerReturn,
+    resetCurrentSupplierReturn
+} from '../store/slices/returnSlice';
 import {
     LayoutDashboard,
     Users as UsersIcon,
@@ -64,30 +115,24 @@ import {
     FileText,
     Download,
     Grid,
-    List
+    List,
+    AlertTriangle,
+    AlertCircle,
+    Building2,
+    MapPin,
+    UserCheck,
+    Factory,
+    ShoppingBag,
+    Mail,
+    RotateCcw,
+    Loader
 } from 'lucide-react';
 import './AdminDashboard.css';
 import './AdminDashboard_additions.css';
+import './AdminDashboard_stock.css';
+import './AdminDashboard_warehouse_supplier.css';
 import './AdminDashboard_period_filter.css';
-
-const MOCK_USERS = [
-    { id: 1, name: 'Admin User', email: 'admin@amsfood.com', role: 'Admin', status: 'Active' },
-    { id: 2, name: 'Jean Dupont', email: 'jean.dupont@gmail.com', role: 'Client', status: 'Active' },
-    { id: 3, name: 'Marie Larch', email: 'm.larch@larch.com', role: 'Manager', status: 'Active' },
-];
-
-const MOCK_ORDERS = [
-    { id: 'ORD-892', customer: 'Jean Dupont', date: '2026-01-12', total: '150.00', status: 'Pending' },
-    { id: 'ORD-891', customer: 'Marie Larch', date: '2026-01-11', total: '320.50', status: 'Validated' },
-    { id: 'ORD-890', customer: 'Ahmed Ben', date: '2026-01-10', total: '85.00', status: 'Delivered' },
-];
-
-const MOCK_ROLES = [
-    { id: 1, code: 'ADMIN', label: 'Administrateur', is_active: true },
-    { id: 2, code: 'MANAGER', label: 'Gestionnaire', is_active: true },
-    { id: 3, code: 'CLIENT', label: 'Client', is_active: true },
-    { id: 4, code: 'GUEST', label: 'Invité', is_active: false },
-];
+import './AdminDashboard_po.css';
 
 const SALES_DATA = [
     { day: 'Lun', sales: 1200 },
@@ -512,20 +557,27 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
     const { users: usersState = [], loading: usersLoading, error: usersError } = useAppSelector(state => state.user);
     const { orders: ordersState = [], loading: ordersLoading, error: ordersError } = useAppSelector(state => state.order);
     const { roles: rolesState = [], loading: rolesLoading, error: rolesError } = useAppSelector(state => state.role);
+    const { stocks: stocksState = [], loading: stocksLoading, error: stocksError, alerts: stockAlerts = [], movements: stockMovements = [], report: stockReport = null } = useAppSelector(state => state.stock);
+    const { warehouses: warehousesState = [], loading: warehousesLoading, error: warehousesError, warehouseStock: warehouseStockState = [] } = useAppSelector(state => state.warehouse);
+    const { suppliers: suppliersState = [], loading: suppliersLoading, error: suppliersError, supplierProducts: supplierProductsState = [] } = useAppSelector(state => state.supplier);
+    const { purchaseOrders: purchaseOrdersState = [], loading: purchaseOrdersLoading, error: purchaseOrdersError, currentPurchaseOrder: currentPOState = null, purchaseOrderHistory: poHistoryState = [] } = useAppSelector(state => state.purchaseOrder);
+    const { customerReturns: customerReturnsState = [], supplierReturns: supplierReturnsState = [], currentCustomerReturn: currentCustomerReturnState = null, currentSupplierReturn: currentSupplierReturnState = null, customerReturnsLoading, customerReturnsError, supplierReturnsLoading, supplierReturnsError } = useAppSelector(state => state.return);
 
     // Combined loading state
     const loading = productsLoading || categoriesLoading || usersLoading || ordersLoading || rolesLoading;
 
-    // Use Redux state with demo fallbacks
-    // Fix: Prioritize real data if token exists, preventing "Demo Mode" from hiding empty or newly created states
-    const token = sessionStorage.getItem('token');
-    const isDemoMode = !token;
-
-    const products = isDemoMode ? (initialProducts || []) : productsState;
-    const categories = isDemoMode ? (initialCategories || []) : categoriesState;
-    const users = (usersState.length > 0 || !isDemoMode) ? usersState : MOCK_USERS;
-    const orders = (ordersState.length > 0 || !isDemoMode) ? ordersState : MOCK_ORDERS;
-    const roles = (Array.isArray(rolesState) && rolesState.length > 0 || !isDemoMode) ? (Array.isArray(rolesState) ? rolesState : MOCK_ROLES) : MOCK_ROLES;
+    // Use Redux state directly
+    const products = productsState;
+    const categories = categoriesState;
+    const users = usersState;
+    const orders = ordersState;
+    const roles = rolesState;
+    const purchaseOrders = purchaseOrdersState;
+    const warehouses = warehousesState;
+    const suppliers = suppliersState;
+    const stocks = stocksState;
+    const customerReturns = customerReturnsState;
+    const supplierReturns = supplierReturnsState;
 
     // Combined error state
     const hasError = productsError || categoriesError || usersError || ordersError || rolesError;
@@ -572,6 +624,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
     const [editingUser, setEditingUser] = useState(null);
     const [viewingProduct, setViewingProduct] = useState(null);
     const [viewingOrder, setViewingOrder] = useState(null);
+    const [viewingPO, setViewingPO] = useState(null);
     const [paymentModal, setPaymentModal] = useState({ show: false, order: null });
     const [paymentMethods, setPaymentMethods] = useState([]);
     const [newPayment, setNewPayment] = useState({ type: 'cash', bank_code: '', amount: '', payment_date: '', comment: '' });
@@ -601,7 +654,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
     const [downloadingOrderId, setDownloadingOrderId] = useState(null);
 
     // User role state for access control
-    const [userRole, setUserRole] = useState(null);
+    const [userRole, setUserRole] = useState({ id: 1, code: 'ADMIN', label: 'Administrateur', is_active: true });
     const [isLoadingRole, setIsLoadingRole] = useState(true);
 
     // Fetch user role on mount
@@ -631,6 +684,8 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                 setIsLoadingRole(false);
             }
         } else {
+            // Demo mode: set ADMIN role by default to allow viewing all content
+            setUserRole({ id: 1, code: 'ADMIN', label: 'Administrateur', is_active: true });
             setIsLoadingRole(false);
         }
     }, [dispatch]);
@@ -653,34 +708,63 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
     // Load data when activeTab changes
     useEffect(() => {
         const token = sessionStorage.getItem('token');
-        if (!token) return;
+        // Allow loading even without token (for demo mode with mocks)
 
         switch(activeTab) {
             case 'products':
-                dispatch(getAllProducts({ category: null, token }));
+                if (token) dispatch(getAllProducts({ category: null, token }));
                 break;
             case 'users':
                 // Only load users if user is ADMIN
-                if (userRole?.code === 'ADMIN') {
+                if (userRole?.code === 'ADMIN' && token) {
                     dispatch(getAllUsers(token));
                 }
                 break;
             case 'orders':
-                dispatch(getOrdersByUser(token));
+                if (token) dispatch(getOrdersByUser(token));
                 break;
             case 'banks':
                 // Only load banks if user is ADMIN
-                if (userRole?.code === 'ADMIN') {
+                if (userRole?.code === 'ADMIN' && token) {
                     dispatch(getAllBanks(token));
+                }
+                break;
+            case 'stock':
+                // Load stock data
+                if (token) {
+                    dispatch(getAllStocks(token));
+                    dispatch(getLowStockAlerts({ threshold: lowStockThreshold, token }));
+                }
+                break;
+            case 'warehouses':
+                // Load warehouse data
+                if (token) {
+                    dispatch(getAllWarehouses(token));
+                }
+                break;
+            case 'suppliers':
+                // Load supplier data
+                if (token) {
+                    dispatch(getAllSuppliers(token));
+                }
+                break;
+            case 'purchaseOrders':
+                // Load purchase order data
+                if (token) {
+                    dispatch(getAllPurchaseOrders(token));
                 }
                 break;
             case 'overview':
                 // Load all data for overview
-                dispatch(getAllProducts({ category: null, token }));
-                if (userRole?.code === 'ADMIN') {
-                    dispatch(getAllUsers(token));
+                if (token) {
+                    dispatch(getAllProducts({ category: null, token }));
+                    if (userRole?.code === 'ADMIN') {
+                        dispatch(getAllUsers(token));
+                    }
+                    dispatch(getOrdersByUser(token));
+                    dispatch(getAllWarehouses(token));
+                    dispatch(getAllSuppliers(token));
                 }
-                dispatch(getOrdersByUser(token));
                 break;
             default:
                 break;
@@ -746,6 +830,84 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
     const [categoryErrors, setCategoryErrors] = useState({});
     const [productErrors, setProductErrors] = useState({});
     const [roleErrors, setRoleErrors] = useState({});
+
+    // Stock Management States
+    const [stockAdjustmentModal, setStockAdjustmentModal] = useState(null);
+    const [adjustmentQuantity, setAdjustmentQuantity] = useState(0);
+    const [adjustmentReason, setAdjustmentReason] = useState('adjustment');
+    const [stockSearchQuery, setStockSearchQuery] = useState('');
+    const [lowStockThreshold, setLowStockThreshold] = useState(20);
+    const [isAdjustingStock, setIsAdjustingStock] = useState(false);
+
+    // Warehouse Management States
+    const [warehouseSearchQuery, setWarehouseSearchQuery] = useState('');
+    const [newWarehouse, setNewWarehouse] = useState({ name: '', location: '', city: '', capacity: 0, is_active: true });
+    const [editingWarehouse, setEditingWarehouse] = useState(null);
+    const [isCreatingWarehouse, setIsCreatingWarehouse] = useState(false);
+    const [deletingWarehouse, setDeletingWarehouse] = useState(null);
+    const [isSavingWarehouse, setIsSavingWarehouse] = useState(false);
+
+    // Supplier Management States
+    const [supplierSearchQuery, setSupplierSearchQuery] = useState('');
+    const [newSupplier, setNewSupplier] = useState({ 
+        name: '', 
+        email: '', 
+        phone: '', 
+        address: '', 
+        city: '', 
+        postal_code: '',
+        country: '',
+        payment_terms: '',
+        is_active: true 
+    });
+    const [editingSupplier, setEditingSupplier] = useState(null);
+    const [isCreatingSupplier, setIsCreatingSupplier] = useState(false);
+    const [deletingSupplier, setDeletingSupplier] = useState(null);
+    const [isSavingSupplier, setIsSavingSupplier] = useState(false);
+
+    // Purchase Order Management States
+    const [poSearchQuery, setPoSearchQuery] = useState('');
+    const [poStatusFilter, setPoStatusFilter] = useState('all');
+    const [newPurchaseOrder, setNewPurchaseOrder] = useState({ supplier_id: '', warehouse_id: '', total_amount: 0, status: 'draft', notes: '', lines: [] });
+    const [editingPurchaseOrder, setEditingPurchaseOrder] = useState(null);
+    const [isCreatingPurchaseOrder, setIsCreatingPurchaseOrder] = useState(false);
+    const [poItems, setPoItems] = useState([]);
+    const [newPoItem, setNewPoItem] = useState({ product_id: '', quantity: 1, unit_price: 0, received_quantity: 0 });
+    const [showPoItemModal, setShowPoItemModal] = useState(false);
+    const [isReceivingPO, setIsReceivingPO] = useState(false);
+    const [poReceiveItems, setPoReceiveItems] = useState({});
+    const [deletingPO, setDeletingPO] = useState(null);
+    const [isSavingPO, setIsSavingPO] = useState(false);
+    const [isLoadingForEdit, setIsLoadingForEdit] = useState(false);
+    const [isLoadingForDetails, setIsLoadingForDetails] = useState(false);
+
+    // Returns Management States
+    const [customerReturnSearchQuery, setCustomerReturnSearchQuery] = useState('');
+    const [customerReturnStatusFilter, setCustomerReturnStatusFilter] = useState('all');
+    const [newCustomerReturn, setNewCustomerReturn] = useState({ order_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' });
+    const [isCreatingCustomerReturn, setIsCreatingCustomerReturn] = useState(false);
+    const [editingCustomerReturn, setEditingCustomerReturn] = useState(null);
+    const [viewingCustomerReturn, setViewingCustomerReturn] = useState(null);
+
+    const [supplierReturnSearchQuery, setSupplierReturnSearchQuery] = useState('');
+    const [supplierReturnStatusFilter, setSupplierReturnStatusFilter] = useState('all');
+    const [newSupplierReturn, setNewSupplierReturn] = useState({ po_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' });
+    const [isCreatingSupplierReturn, setIsCreatingSupplierReturn] = useState(false);
+    const [editingSupplierReturn, setEditingSupplierReturn] = useState(null);
+    const [viewingSupplierReturn, setViewingSupplierReturn] = useState(null);
+
+    // Load suppliers and warehouses when PO modal opens
+    useEffect(() => {
+        if (isCreatingPurchaseOrder) {
+            const token = sessionStorage.getItem('token');
+            if (token) {
+                console.log('Loading suppliers and warehouses for PO modal...');
+                dispatch(getAllSuppliers(token));
+                dispatch(getAllWarehouses(token));
+                dispatch(getAllProducts({ category: null, token }));
+            }
+        }
+    }, [isCreatingPurchaseOrder, dispatch]);
 
     const stats = [
         { label: 'Total Produits', value: products.length, icon: <Package size={20} />, color: '#d4af37' },
@@ -908,6 +1070,81 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
 
     const handleDeleteCategory = async (id) => {
         setDeletingCategory(id);
+    };
+
+    const handleDeletePurchaseOrder = async (id) => {
+        setDeletingPO(id);
+    };
+
+    const confirmDeletePurchaseOrder = async () => {
+        if (!deletingPO) return;
+        
+        const id = deletingPO;
+        setDeletingPO(null);
+        const token = sessionStorage.getItem('token');
+        
+        try {
+            const result = await dispatch(deletePurchaseOrder({ id, token }));
+            
+            if (deletePurchaseOrder.fulfilled.match(result)) {
+                showToast('Commande d\'achat supprimée avec succès', 'success');
+                dispatch(getAllPurchaseOrders(token));
+            } else if (deletePurchaseOrder.rejected.match(result)) {
+                showToast('Erreur lors de la suppression de la commande', 'error');
+            }
+        } catch (error) {
+            showToast('Erreur lors de la suppression', 'error');
+        }
+    };
+
+    const handleDeleteSupplier = async (id) => {
+        setDeletingSupplier(id);
+    };
+
+    const handleDeleteWarehouse = async (id) => {
+        setDeletingWarehouse(id);
+    };
+
+    const confirmDeleteWarehouse = async () => {
+        if (!deletingWarehouse) return;
+        
+        const id = deletingWarehouse;
+        setDeletingWarehouse(null);
+        const token = sessionStorage.getItem('token');
+        
+        try {
+            const result = await dispatch(deleteWarehouse({ id, token }));
+            
+            if (deleteWarehouse.fulfilled.match(result)) {
+                showToast('Entrepôt supprimé avec succès', 'success');
+                dispatch(getAllWarehouses(token));
+            } else if (deleteWarehouse.rejected.match(result)) {
+                showToast('Erreur lors de la suppression de l\'entrepôt', 'error');
+            }
+        } catch (error) {
+            showToast('Erreur lors de la suppression', 'error');
+        }
+    };
+
+    const confirmDeleteSupplier = async () => {
+        if (!deletingSupplier) return;
+        
+        const id = deletingSupplier;
+        setDeletingSupplier(null);
+        const token = sessionStorage.getItem('token');
+        
+        try {
+            const result = await dispatch(deleteSupplier({ id, token }));
+            
+            if (deleteSupplier.fulfilled.match(result)) {
+                showToast('Fournisseur supprimé avec succès', 'success');
+                dispatch(getAllSuppliers(token));
+            } else if (deleteSupplier.rejected.match(result)) {
+                showToast('Erreur lors de la suppression du fournisseur', 'error');
+            }
+        } catch (error) {
+            showToast('Erreur lors de la suppression', 'error');
+        }
     };
 
     const confirmDeleteCategory = async () => {
@@ -1913,6 +2150,1330 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
         );
     };
 
+    const renderStock = () => {
+        // Ensure stocks is an array and filter out undefined/null values
+        const stocksList = (Array.isArray(stocks) ? stocks : []).filter(s => s && typeof s === 'object');
+        
+        const filteredStocks = stocksList.filter(stock => {
+            if (!stockSearchQuery) return true;
+            const searchLower = stockSearchQuery.toLowerCase();
+            return (
+                stock.product_name?.toLowerCase().includes(searchLower) ||
+                stock.product_sku?.toLowerCase().includes(searchLower) ||
+                stock.category?.toLowerCase().includes(searchLower)
+            );
+        });
+
+        const totalStock = stocksList.reduce((sum, stock) => sum + (parseInt(stock?.quantity) || 0), 0);
+        const lowStockCount = stockAlerts.length;
+        const outOfStock = stocksList.filter(s => s && parseInt(s?.quantity) === 0).length;
+
+        const handleAdjustStock = async () => {
+            if (!stockAdjustmentModal || !adjustmentQuantity) {
+                showToast('Veuillez entrer une quantité valide', 'error');
+                return;
+            }
+
+            setIsAdjustingStock(true);
+            const token = sessionStorage.getItem('token');
+            try {
+                await dispatch(adjustStock({
+                    productId: stockAdjustmentModal.productId,
+                    adjustmentQuantity: parseInt(adjustmentQuantity),
+                    reason: adjustmentReason,
+                    token
+                }));
+                
+                await dispatch(getAllStocks(token));
+                
+                showToast('Stock ajusté avec succès', 'success');
+                setStockAdjustmentModal(null);
+                setAdjustmentQuantity(0);
+                setAdjustmentReason('adjustment');
+            } catch (error) {
+                showToast('Erreur lors de l\'ajustement du stock', 'error');
+            } finally {
+                setIsAdjustingStock(false);
+            }
+        };
+
+        const openAdjustmentModal = (productId, productName, currentStock) => {
+            setStockAdjustmentModal({ productId, productName, currentStock });
+            setAdjustmentQuantity(0);
+            setAdjustmentReason('adjustment');
+        };
+
+        const getStockStatus = (quantity) => {
+            const qty = parseInt(quantity);
+            if (qty === 0) return { status: 'out', color: '#ef4444', label: 'Rupture' };
+            if (qty < lowStockThreshold) return { status: 'low', color: '#f97316', label: 'Faible' };
+            return { status: 'ok', color: '#10b981', label: 'Bon' };
+        };
+
+        const getStockPercentage = (quantity, maxQty = 100) => {
+            return Math.min((parseInt(quantity) / maxQty) * 100, 100);
+        };
+
+        return (
+            <motion.div
+                key="stock"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.25 }}
+                className="stock-container"
+            >
+                <div className="stock-header">
+                    <h2><Package size={28} style={{ color: 'var(--primary)' }} /> Gestion de Stock</h2>
+                    <div className="stock-actions">
+                        <button
+                            className="primary-btn"
+                            onClick={() => dispatch(getStockReport(sessionStorage.getItem('token')))}
+                            title="Générer un rapport de stock"
+                        >
+                            <BarChart size={18} /> Rapport
+                        </button>
+                        <button
+                            className="secondary-btn"
+                            onClick={() => dispatch(getLowStockAlerts({ 
+                                threshold: lowStockThreshold, 
+                                token: sessionStorage.getItem('token') 
+                            }))}
+                            title="Vérifier les alertes"
+                        >
+                            <AlertCircle size={18} /> Alertes
+                        </button>
+                    </div>
+                </div>
+
+                <div className="stock-summary">
+                    <div className="stock-card">
+                        <div className="stock-card-label">Stock Total</div>
+                        <div className="stock-card-value">{totalStock}</div>
+                        <div className="stock-card-change positive">
+                            <TrendingUp size={16} /> Unités en stock
+                        </div>
+                    </div>
+
+                    <div className="stock-card">
+                        <div className="stock-card-label">Produits en Alerte</div>
+                        <div className="stock-card-value" style={{ color: '#f97316' }}>{lowStockCount}</div>
+                        <div className="stock-card-change warning">
+                            <AlertTriangle size={16} /> Stock faible
+                        </div>
+                    </div>
+
+                    <div className="stock-card">
+                        <div className="stock-card-label">Ruptures</div>
+                        <div className="stock-card-value" style={{ color: '#ef4444' }}>{outOfStock}</div>
+                        <div className="stock-card-change negative">
+                            <XCircle size={16} /> Non disponible
+                        </div>
+                    </div>
+
+                    <div className="stock-card">
+                        <div className="stock-card-label">Produits Suivis</div>
+                        <div className="stock-card-value">{stocks.length}</div>
+                        <div className="stock-card-change" style={{ color: 'var(--primary)' }}>
+                            <Package size={16} /> Référencés
+                        </div>
+                    </div>
+                </div>
+
+                {stockAlerts.length > 0 && (
+                    <div className="stock-alerts">
+                        <div className="alerts-title">
+                            <AlertTriangle size={20} style={{ color: '#f97316' }} />
+                            Produits en Alerte ({stockAlerts.length})
+                        </div>
+                        {stockAlerts.map((alert, idx) => {
+                            const status = getStockStatus(alert.quantity);
+                            return (
+                                <div 
+                                    key={idx} 
+                                    className={`alert-item ${status.status === 'low' ? 'warning' : ''}`}
+                                    style={{ borderLeftColor: status.color }}
+                                >
+                                    <div className="alert-content">
+                                        <div className="alert-product">{alert.product_name || 'Produit'}</div>
+                                        <div className="alert-message">
+                                            {status.label} - 
+                                            {status.status === 'out' 
+                                                ? ' Rupture de stock' 
+                                                : ` ${alert.quantity} unités restantes`
+                                            }
+                                        </div>
+                                    </div>
+                                    <button
+                                        className="stock-action-btn"
+                                        onClick={() => openAdjustmentModal(
+                                            alert.product_id,
+                                            alert.product_name,
+                                            alert.quantity
+                                        )}
+                                    >
+                                        <Plus size={16} /> Ravitailler
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                <div className="stock-filters">
+                    <input
+                        type="text"
+                        placeholder="Rechercher par produit, SKU..."
+                        value={stockSearchQuery}
+                        onChange={(e) => setStockSearchQuery(e.target.value)}
+                        style={{ minWidth: '250px' }}
+                    />
+                    <input
+                        type="number"
+                        placeholder="Seuil d'alerte"
+                        value={lowStockThreshold}
+                        onChange={(e) => setLowStockThreshold(Math.max(1, parseInt(e.target.value) || 1))}
+                        min="1"
+                        max="1000"
+                        style={{ maxWidth: '150px' }}
+                    />
+                </div>
+
+                <div className="stock-table-container">
+                    {filteredStocks.length > 0 ? (
+                        <table className="stock-table">
+                            <thead>
+                                <tr>
+                                    <th>Produit</th>
+                                    <th>SKU</th>
+                                    <th>Catégorie</th>
+                                    <th>Stock Actuel</th>
+                                    <th>État</th>
+                                    <th>Seuil</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredStocks.map((stock, idx) => {
+                                    const status = getStockStatus(stock.quantity);
+                                    const percentage = getStockPercentage(stock.quantity);
+                                    return (
+                                        <tr key={idx}>
+                                            <td>
+                                               {stock.name || 'Produit'}
+                                            </td>
+                                            <td>{'PRD-' + (stock.id || 'N/A')}</td>
+                                            <td>{stock.category_name || 'N/A'}</td>
+                                            <td>
+                                                <div className="stock-quantity">
+                                                    <div className="stock-bar">
+                                                        <div 
+                                                            className={`stock-bar-fill ${status.status === 'low' ? 'low' : status.status === 'ok' ? '' : 'warning'}`}
+                                                            style={{ width: `${percentage}%` }}
+                                                        />
+                                                    </div>
+                                                    <div className="stock-quantity-value">{stock.quantity}</div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span style={{
+                                                    padding: '6px 12px',
+                                                    borderRadius: '6px',
+                                                    background: `${status.color}20`,
+                                                    color: status.color,
+                                                    fontWeight: '600',
+                                                    fontSize: '0.85rem'
+                                                }}>
+                                                    {status.label}
+                                                </span>
+                                            </td>
+                                            <td>{stock.stock_securite}</td>
+                                            <td>
+                                                <div className="stock-actions-cell">
+                                                    <button
+                                                        className="stock-action-btn"
+                                                        onClick={() => openAdjustmentModal(
+                                                            stock.product_id,
+                                                            stock.product_name,
+                                                            stock.quantity
+                                                        )}
+                                                        title="Ajuster le stock"
+                                                    >
+                                                        <Edit2 size={16} /> Ajuster
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    ) : (
+                        <div className="stock-empty">
+                            <div className="stock-empty-icon">📦</div>
+                            <p>Aucun produit trouvé avec ces critères</p>
+                        </div>
+                    )}
+                </div>
+
+                {stockAdjustmentModal && (
+                    <div className="admin-overlay" onClick={() => {
+                        setStockAdjustmentModal(null);
+                        setAdjustmentQuantity(0);
+                    }}>
+                        <motion.div
+                            className="admin-modal"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="modal-header">
+                                <h2><Package size={22} style={{ display: 'inline', marginRight: '10px' }} />Ajuster Stock</h2>
+                                <button 
+                                    className="close-btn"
+                                    onClick={() => setStockAdjustmentModal(null)}
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div className="modal-body">
+                                <div className="form-group">
+                                    <label>Produit</label>
+                                    <div style={{
+                                        padding: '12px',
+                                        background: 'var(--bg-main)',
+                                        borderRadius: '8px',
+                                        fontWeight: '600'
+                                    }}>
+                                        {stockAdjustmentModal.productName}
+                                    </div>
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label>Stock Actuel</label>
+                                    <div style={{
+                                        padding: '12px',
+                                        background: 'var(--bg-main)',
+                                        borderRadius: '8px',
+                                        fontWeight: '600',
+                                        color: parseInt(stockAdjustmentModal.currentStock) === 0 ? '#ef4444' : 'var(--text-primary)'
+                                    }}>
+                                        {stockAdjustmentModal.currentStock} unités
+                                    </div>
+                                </div>
+
+                                <div className="stock-adjustment-form">
+                                    <div className="form-group">
+                                        <label>Quantité à Ajouter/Retirer *</label>
+                                        <input
+                                            type="number"
+                                            placeholder="Ex: +50 ou -10"
+                                            value={adjustmentQuantity}
+                                            onChange={(e) => setAdjustmentQuantity(e.target.value)}
+                                            style={{
+                                                padding: '12px',
+                                                border: '1px solid var(--border-color)',
+                                                borderRadius: '8px',
+                                                background: 'var(--bg-main)',
+                                                width: '100%',
+                                                fontSize: '1rem'
+                                            }}
+                                        />
+                                    </div>
+
+                                    <div className="form-group">
+                                        <label>Raison de l'Ajustement</label>
+                                        <div className="adjustment-reason">
+                                            {[
+                                                { value: 'adjustment', label: 'Ajustement' },
+                                                { value: 'reception', label: 'Réception' },
+                                                { value: 'loss', label: 'Perte/Casse' },
+                                                { value: 'transfer', label: 'Transfert' },
+                                                { value: 'inventory', label: 'Inventaire' }
+                                            ].map((reason) => (
+                                                <button
+                                                    key={reason.value}
+                                                    className={`reason-badge ${adjustmentReason === reason.value ? 'active' : ''}`}
+                                                    onClick={() => setAdjustmentReason(reason.value)}
+                                                    type="button"
+                                                >
+                                                    {reason.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style={{
+                                    padding: '12px',
+                                    background: 'rgba(212, 175, 55, 0.1)',
+                                    borderRadius: '8px',
+                                    borderLeft: '4px solid var(--primary)'
+                                }}>
+                                    <div style={{ fontWeight: '600', marginBottom: '4px' }}>Nouveau Stock</div>
+                                    <div style={{ 
+                                        fontSize: '1.2rem', 
+                                        fontWeight: '700',
+                                        color: 'var(--primary)'
+                                    }}>
+                                        {(parseInt(stockAdjustmentModal.currentStock) || 0) + (parseInt(adjustmentQuantity) || 0)} unités
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button 
+                                    className="cancel-pill-btn"
+                                    onClick={() => setStockAdjustmentModal(null)}
+                                    disabled={isAdjustingStock}
+                                >
+                                    Annuler
+                                </button>
+                                <button
+                                    className="save-pill-btn"
+                                    onClick={handleAdjustStock}
+                                    disabled={isAdjustingStock || !adjustmentQuantity}
+                                    style={{ opacity: (!adjustmentQuantity || isAdjustingStock) ? 0.6 : 1 }}
+                                >
+                                    {isAdjustingStock ? (
+                                        <>
+                                            <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Enregistrement...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Save size={16} /> Enregistrer
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+
+                {stockMovements.length > 0 && (
+                    <div className="stock-history">
+                        <div className="history-title">Derniers Mouvements</div>
+                        <div className="history-timeline">
+                            {stockMovements.slice(0, 5).map((movement, idx) => (
+                                <div key={idx} className="history-item">
+                                    <div className="history-marker">
+                                        {movement.type === 'addition' ? (
+                                            <Plus size={20} style={{ color: 'var(--primary)' }} />
+                                        ) : (
+                                            <Trash2 size={20} style={{ color: '#f97316' }} />
+                                        )}
+                                    </div>
+                                    <div className="history-content">
+                                        <div className="history-action">
+                                            {movement.product_name}
+                                        </div>
+                                        <div className="history-details">
+                                            {movement.type === 'addition' ? '+' : '-'}{movement.quantity} unités
+                                            {movement.reason && ` - ${movement.reason}`}
+                                        </div>
+                                        <div className="history-time">
+                                            {new Date(movement.created_at).toLocaleDateString('fr-FR')} à{' '}
+                                            {new Date(movement.created_at).toLocaleTimeString('fr-FR', {
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </motion.div>
+        );
+    };
+
+    const renderWarehouses = () => {
+        // Ensure warehouses is an array and filter out undefined/null values
+        const warehousesList = (Array.isArray(warehouses) ? warehouses : []).filter(w => w && typeof w === 'object');
+        
+        const filteredWarehouses = warehousesList.filter(w => {
+            if (!warehouseSearchQuery) return true;
+            const searchLower = warehouseSearchQuery.toLowerCase();
+            return (
+                w.name?.toLowerCase().includes(searchLower) ||
+                w.location?.toLowerCase().includes(searchLower) ||
+                w.city?.toLowerCase().includes(searchLower)
+            );
+        });
+
+        const totalCapacity = warehousesList.reduce((sum, w) => sum + (parseInt(w?.capacity) || 0), 0);
+        const activeWarehouses = warehousesList.filter(w => w?.is_active).length;
+
+        return (
+            <motion.div
+                key="warehouses"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.25 }}
+                className="warehouse-container"
+            >
+                <div className="warehouse-header">
+                    <h2><Building2 size={28} style={{ color: 'var(--primary)' }} /> Gestion des Entrepôts</h2>
+                    <div className="warehouse-actions">
+                        <button
+                            className="primary-btn"
+                            onClick={() => setIsCreatingWarehouse(true)}
+                        >
+                            <Plus size={18} /> Nouvel Entrepôt
+                        </button>
+                    </div>
+                </div>
+
+                <div className="warehouse-summary">
+                    <div className="warehouse-card">
+                        <div className="warehouse-card-label">Total Entrepôts</div>
+                        <div className="warehouse-card-value">{warehousesList.length}</div>
+                        <div className="warehouse-card-change positive">
+                            <Building2 size={16} /> Enregistrés
+                        </div>
+                    </div>
+
+                    <div className="warehouse-card">
+                        <div className="warehouse-card-label">Entrepôts Actifs</div>
+                        <div className="warehouse-card-value" style={{ color: 'var(--primary)' }}>{activeWarehouses}</div>
+                        <div className="warehouse-card-change">
+                            <CheckCircle2 size={16} /> En service
+                        </div>
+                    </div>
+
+                    <div className="warehouse-card">
+                        <div className="warehouse-card-label">Capacité Totale</div>
+                        <div className="warehouse-card-value">{totalCapacity}</div>
+                        <div className="warehouse-card-change">
+                            <TrendingUp size={16} /> Unités
+                        </div>
+                    </div>
+                </div>
+
+                <div className="warehouse-filters">
+                    <input
+                        type="text"
+                        placeholder="Rechercher par nom, localisation..."
+                        value={warehouseSearchQuery}
+                        onChange={(e) => setWarehouseSearchQuery(e.target.value)}
+                        style={{ minWidth: '250px' }}
+                    />
+                </div>
+
+                <div className="warehouse-table-container">
+                    {filteredWarehouses.length > 0 ? (
+                        <table className="warehouse-table">
+                            <thead>
+                                <tr>
+                                    <th>Nom</th>
+                                    <th>Localisation</th>
+                                    <th>Ville</th>
+                                    <th>Capacité</th>
+                                    <th>Statut</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredWarehouses.map((warehouse, idx) => (
+                                    <tr key={idx}>
+                                        <td>
+                                            <div className="warehouse-info">
+                                                <div className="warehouse-icon">
+                                                    <Building2 size={18} />
+                                                </div>
+                                                <div className="warehouse-name">{warehouse.name}</div>
+                                            </div>
+                                        </td>
+                                        <td>{warehouse.location || 'N/A'}</td>
+                                        <td>{warehouse.city || 'N/A'}</td>
+                                        <td style={{ textAlign: 'center' }}><strong>{warehouse.capacity || 0}</strong> unités</td>
+                                        <td>
+                                            <span className={`status-badge ${warehouse.is_active ? 'active' : 'inactive'}`}>
+                                                {warehouse.is_active ? 'Actif' : 'Inactif'}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div className="warehouse-actions-cell">
+                                                <button
+                                                    className="warehouse-action-btn"
+                                                    disabled={isSavingWarehouse}
+                                                    onClick={() => setEditingWarehouse(warehouse)}
+                                                    title="Modifier"
+                                                    style={{ opacity: isSavingWarehouse ? 0.6 : 1, cursor: isSavingWarehouse ? 'not-allowed' : 'pointer' }}
+                                                >
+                                                    {isSavingWarehouse ? <Loader size={16} style={{animation: 'spin 1s linear infinite'}} /> : <Edit2 size={16} />} {isSavingWarehouse ? 'Chargement...' : 'Modifier'}
+                                                </button>
+                                                <button
+                                                    className="warehouse-action-btn delete"
+                                                    disabled={deletingWarehouse === warehouse.id}
+                                                    onClick={() => handleDeleteWarehouse(warehouse.id)}
+                                                    title="Supprimer"
+                                                    style={{ opacity: deletingWarehouse === warehouse.id ? 0.6 : 1, cursor: deletingWarehouse === warehouse.id ? 'not-allowed' : 'pointer' }}
+                                                >
+                                                    {deletingWarehouse === warehouse.id ? <Loader size={16} style={{animation: 'spin 1s linear infinite'}} /> : <Trash2 size={16} />} {deletingWarehouse === warehouse.id ? 'Suppression...' : 'Supprimer'}
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    ) : (
+                        <div className="warehouse-empty">
+                            <div className="warehouse-empty-icon">📦</div>
+                            <p>Aucun entrepôt trouvé</p>
+                        </div>
+                    )}
+                </div>
+            </motion.div>
+        );
+    };
+
+    const renderSuppliers = () => {
+        // Ensure suppliers is an array and filter out undefined/null values
+        const suppliersList = (Array.isArray(suppliers) ? suppliers : []).filter(s => s && typeof s === 'object');
+        
+        const filteredSuppliers = suppliersList.filter(s => {
+            if (!supplierSearchQuery) return true;
+            const searchLower = supplierSearchQuery.toLowerCase();
+            return (
+                s.name?.toLowerCase().includes(searchLower) ||
+                s.email?.toLowerCase().includes(searchLower)
+            );
+        });
+
+        const activeSuppliers = suppliersList.filter(s => s?.is_active).length;
+
+        return (
+            <motion.div
+                key="suppliers"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.25 }}
+                className="supplier-container"
+            >
+                <div className="supplier-header">
+                    <h2><UserCheck size={28} style={{ color: 'var(--primary)' }} /> Gestion des Fournisseurs</h2>
+                    <div className="supplier-actions">
+                        <button
+                            className="primary-btn"
+                            onClick={() => setIsCreatingSupplier(true)}
+                        >
+                            <Plus size={18} /> Nouveau Fournisseur
+                        </button>
+                    </div>
+                </div>
+
+                <div className="supplier-summary">
+                    <div className="supplier-card">
+                        <div className="supplier-card-label">Total Fournisseurs</div>
+                        <div className="supplier-card-value">{suppliersList.length}</div>
+                        <div className="supplier-card-change positive">
+                            <UserCheck size={16} /> Enregistrés
+                        </div>
+                    </div>
+
+                    <div className="supplier-card">
+                        <div className="supplier-card-label">Fournisseurs Actifs</div>
+                        <div className="supplier-card-value" style={{ color: 'var(--primary)' }}>{activeSuppliers}</div>
+                        <div className="supplier-card-change">
+                            <CheckCircle2 size={16} /> En activité
+                        </div>
+                    </div>
+
+                    <div className="supplier-card">
+                        <div className="supplier-card-label">Taux d'Activité</div>
+                        <div className="supplier-card-value" style={{ color: '#10b981' }}>
+                            {suppliersList.length > 0 ? ((activeSuppliers / suppliersList.length) * 100).toFixed(0) : 0}%
+                        </div>
+                        <div className="supplier-card-change positive">
+                            <TrendingUp size={16} /> Partenaires
+                        </div>
+                    </div>
+                </div>
+
+                <div className="supplier-filters">
+                    <input
+                        type="text"
+                        placeholder="Rechercher par nom ou email..."
+                        value={supplierSearchQuery}
+                        onChange={(e) => setSupplierSearchQuery(e.target.value)}
+                        style={{ minWidth: '250px' }}
+                    />
+                </div>
+
+                <div className="supplier-table-container">
+                    {filteredSuppliers.length > 0 ? (
+                        <table className="supplier-table">
+                            <thead>
+                                <tr>
+                                    <th>Nom</th>
+                                    <th>Pays</th>
+                                    <th>Ville</th>
+                                    <th>Email</th>
+                                    <th>Téléphone</th>
+                                    <th>Code Postal</th>
+                                    <th>Conditions Paiement</th>
+                                    <th>Statut</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredSuppliers.map((supplier, idx) => (
+                                    <tr key={idx}>
+                                        <td>
+                                            <div className="supplier-info">
+                                                <div className="supplier-icon">
+                                                    <Factory size={18} />
+                                                </div>
+                                                <div className="supplier-name">{supplier.name}</div>
+                                            </div>
+                                        </td>
+                                        <td>{supplier.country || 'N/A'}</td>
+                                        <td>{supplier.city || 'N/A'}</td>
+                                        <td>{supplier.email || 'N/A'}</td>
+                                        <td>{supplier.phone || 'N/A'}</td>
+                                        <td>{supplier.postal_code || 'N/A'}</td>
+                                        <td>{supplier.payment_terms || 'N/A'}</td>
+                                        <td>
+                                            <span className={`status-badge ${supplier.is_active ? 'active' : 'inactive'}`}>
+                                                {supplier.is_active ? 'Actif' : 'Inactif'}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div className="supplier-actions-cell">
+                                                <button
+                                                    className="supplier-action-btn"
+                                                    disabled={isSavingSupplier}
+                                                    onClick={() => setEditingSupplier(supplier)}
+                                                    title="Modifier"
+                                                    style={{ opacity: isSavingSupplier ? 0.6 : 1, cursor: isSavingSupplier ? 'not-allowed' : 'pointer' }}
+                                                >
+                                                    {isSavingSupplier ? <Loader size={16} style={{animation: 'spin 1s linear infinite'}} /> : <Edit2 size={16} />} {isSavingSupplier ? 'Chargement...' : 'Modifier'}
+                                                </button>
+                                                <button
+                                                    className="supplier-action-btn delete"
+                                                    disabled={deletingSupplier === supplier.id}
+                                                    onClick={() => handleDeleteSupplier(supplier.id)}
+                                                    title="Supprimer"
+                                                    style={{ opacity: deletingSupplier === supplier.id ? 0.6 : 1, cursor: deletingSupplier === supplier.id ? 'not-allowed' : 'pointer' }}
+                                                >
+                                                    {deletingSupplier === supplier.id ? <Loader size={16} style={{animation: 'spin 1s linear infinite'}} /> : <Trash2 size={16} />} {deletingSupplier === supplier.id ? 'Suppression...' : 'Supprimer'}
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    ) : (
+                        <div className="supplier-empty">
+                            <div className="supplier-empty-icon">🏭</div>
+                            <p>Aucun fournisseur trouvé</p>
+                        </div>
+                    )}
+                </div>
+            </motion.div>
+        );
+    };
+
+    const renderPurchaseOrders = () => {
+        // Ensure purchaseOrders is an array and filter out undefined/null values
+        const poList = (Array.isArray(purchaseOrders) ? purchaseOrders : []).filter(po => po && typeof po === 'object');
+        
+        const filteredPOs = poList.filter(po => {
+            const matchesSearch = !poSearchQuery || 
+                po.id?.toString().includes(poSearchQuery) ||
+                po.supplier?.name?.toLowerCase().includes(poSearchQuery.toLowerCase()) ||
+                po.warehouse?.name?.toLowerCase().includes(poSearchQuery.toLowerCase());
+            
+            const matchesStatus = poStatusFilter === 'all' || po.status === poStatusFilter;
+            return matchesSearch && matchesStatus;
+        });
+
+        const draftPOs = poList.filter(po => po?.status === 'draft').length;
+        const sentPOs = poList.filter(po => po?.status === 'sent').length;
+        const receivedPOs = poList.filter(po => po?.status === 'received').length;
+        const totalPOAmount = poList.reduce((sum, po) => sum + (parseFloat(po?.total_amount) || 0), 0);
+
+        return (
+            <motion.div
+                key="purchaseOrders"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.25 }}
+                className="po-container"
+            >
+                <div className="po-header">
+                    <h2><ShoppingBag size={28} style={{ color: 'var(--primary)' }} /> Gestion des Commandes d'Achat</h2>
+                    <div className="po-actions">
+                        <button
+                            className="primary-btn"
+                            onClick={() => setIsCreatingPurchaseOrder(true)}
+                        >
+                            <Plus size={18} /> Nouvelle Commande
+                        </button>
+                    </div>
+                </div>
+
+                <div className="po-summary">
+                    <div className="po-card">
+                        <div className="po-card-label">Total Commande</div>
+                        <div className="po-card-value">{poList.length}</div>
+                        <div className="po-card-change positive">
+                            <ShoppingBag size={16} /> Articles
+                        </div>
+                    </div>
+
+                    <div className="po-card">
+                        <div className="po-card-label">En Brouillon</div>
+                        <div className="po-card-value" style={{ color: '#f97316' }}>{draftPOs}</div>
+                        <div className="po-card-change">
+                            <Clock size={16} /> À Envoyer
+                        </div>
+                    </div>
+
+                    <div className="po-card">
+                        <div className="po-card-label">Montant Total</div>
+                        <div className="po-card-value" style={{ color: 'var(--primary)' }}>
+                            {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(totalPOAmount)}
+                        </div>
+                        <div className="po-card-change positive">
+                            <DollarSign size={16} /> Budget
+                        </div>
+                    </div>
+
+                    <div className="po-card">
+                        <div className="po-card-label">Reçues</div>
+                        <div className="po-card-value" style={{ color: '#10b981' }}>{receivedPOs}</div>
+                        <div className="po-card-change positive">
+                            <CheckCircle2 size={16} /> Validées
+                        </div>
+                    </div>
+                </div>
+
+                <div className="po-filters">
+                    <input
+                        type="text"
+                        placeholder="Rechercher par N° PO, fournisseur ou entrepôt..."
+                        value={poSearchQuery}
+                        onChange={(e) => setPoSearchQuery(e.target.value)}
+                        style={{ minWidth: '300px' }}
+                    />
+                    <select
+                        value={poStatusFilter}
+                        onChange={(e) => setPoStatusFilter(e.target.value)}
+                        className="filter-select"
+                    >
+                        <option value="all">Tous les statuts</option>
+                        <option value="draft">Brouillon</option>
+                        <option value="sent">Envoyée</option>
+                        <option value="received">Reçue</option>
+                        <option value="cancelled">Annulée</option>
+                    </select>
+                </div>
+
+                <div className="po-table-container">
+                    {filteredPOs.length > 0 ? (
+                        <table className="po-table">
+                            <thead>
+                                <tr>
+                                    <th>N° Commande</th>
+                                    <th>Fournisseur</th>
+                                    <th>Entrepôt</th>
+                                    <th>Montant</th>
+                                    <th>Statut</th>
+                                    <th>Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredPOs.map((po, idx) => (
+                                    <tr key={idx}>
+                                        <td>
+                                            <div className="po-info">
+                                                <ShoppingBag size={16} style={{ marginRight: '8px' }} />
+                                                <strong>PO-{po.id}</strong>
+                                            </div>
+                                        </td>
+                                        <td>{po.supplier_name || 'N/A'}</td>
+                                        <td>{po.warehouse?.name || 'N/A'}</td>
+                                        <td className="po-amount">
+                                            {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(po.total_amount || 0)}
+                                        </td>
+                                        <td>
+                                            <span className={`status-badge ${po.status}`}>
+                                                {po.status === 'draft' ? 'Brouillon' : 
+                                                 po.status === 'sent' ? 'Envoyée' : 
+                                                 po.status === 'received' ? 'Reçue' : 
+                                                 po.status === 'cancelled' ? 'Annulée' : po.status}
+                                            </span>
+                                        </td>
+                                        <td>{po.created_at ? new Date(po.created_at).toLocaleDateString('fr-FR') : 'N/A'}</td>
+                                        <td>
+                                            <div className="po-actions-cell">
+                                                <button
+                                                    className="po-action-btn"
+                                                    disabled={isLoadingForDetails}
+                                                    onClick={async () => {
+                                                        // Charger les données complètes pour afficher les détails
+                                                        const token = sessionStorage.getItem('token');
+                                                        setIsLoadingForDetails(true);
+                                                        try {
+                                                            console.log('Chargement détails PO ID:', po.id);
+                                                            const result = await dispatch(getPurchaseOrderById({ id: po.id, token }));
+                                                            
+                                                            let purchaseOrder = null;
+                                                            if (result?.type?.includes('fulfilled')) {
+                                                                purchaseOrder = result.payload;
+                                                            } else if (result?.type?.includes('rejected')) {
+                                                                console.error('Erreur:', result.payload);
+                                                                showToast('Erreur: ' + (result.payload || 'Impossible de charger les détails'), 'error');
+                                                                return;
+                                                            } else {
+                                                                purchaseOrder = result?.payload;
+                                                            }
+                                                            
+                                                            if (purchaseOrder && typeof purchaseOrder === 'object') {
+                                                                console.log('Détails PO chargés:', purchaseOrder);
+                                                                setViewingPO(purchaseOrder);
+                                                            } else {
+                                                                showToast('Erreur: données non trouvées', 'error');
+                                                            }
+                                                        } catch (error) {
+                                                            console.error('Erreur chargement détails:', error);
+                                                            showToast('Erreur lors du chargement des détails', 'error');
+                                                        } finally {
+                                                            setIsLoadingForDetails(false);
+                                                        }
+                                                    }}
+                                                    title="Voir détails"
+                                                >
+                                                    {isLoadingForDetails ? <Loader size={16} style={{animation: 'spin 1s linear infinite'}} /> : <Eye size={16} />} {isLoadingForDetails ? 'Chargement...' : 'Détails'}
+                                                </button>
+                                                {po.status === 'draft' && (
+                                                <button
+                                                    className="po-action-btn"
+                                                    disabled={isLoadingForEdit}
+                                                    onClick={async () => {
+                                                        // Charger les données complètes depuis l'API via Redux
+                                                        const token = sessionStorage.getItem('token');
+                                                        setIsLoadingForEdit(true);
+                                                        try {
+                                                            console.log('Chargement PO ID:', po.id);
+                                                            const result = await dispatch(getPurchaseOrderById({ id: po.id, token }));
+                                                            
+                                                            console.log('=== FULL RESULT ===');
+                                                            console.log(JSON.stringify(result, null, 2));
+                                                            console.log('Result type:', result?.type);
+                                                            console.log('Result payload:', result?.payload);
+                                                            console.log('Result meta:', result?.meta);
+                                                            
+                                                            let purchaseOrder = null;
+                                                            
+                                                            // Vérifier si c'est fulfilled ou rejected
+                                                            if (result?.type?.includes('fulfilled')) {
+                                                                purchaseOrder = result.payload;
+                                                            } else if (result?.type?.includes('rejected')) {
+                                                                console.error('Action rejected. Error:', result.payload);
+                                                                showToast('Erreur: ' + (result.payload || 'Impossible de charger la PO'), 'error');
+                                                                return;
+                                                            } else {
+                                                                // Fallback si structure différente
+                                                                purchaseOrder = result?.payload;
+                                                            }
+                                                            
+                                                            console.log('Purchase Order final:', purchaseOrder);
+                                                            
+                                                            if (purchaseOrder && typeof purchaseOrder === 'object') {
+                                                                console.log('PO data structure:');
+                                                                console.log('- purchaseOrder.lines:', purchaseOrder.lines);
+                                                                console.log('- purchaseOrder.items:', purchaseOrder.items);
+                                                                
+                                                                // Utiliser items si lines est vide
+                                                                const articlesData = (purchaseOrder.lines && purchaseOrder.lines.length > 0) 
+                                                                    ? purchaseOrder.lines 
+                                                                    : purchaseOrder.items || [];
+                                                                
+                                                                console.log('Articles à charger:', articlesData);
+                                                                
+                                                                setEditingPurchaseOrder(purchaseOrder);
+                                                                setNewPurchaseOrder({ 
+                                                                    supplier_id: purchaseOrder.supplier_id || '', 
+                                                                    warehouse_id: purchaseOrder.warehouse_id || '', 
+                                                                    total_amount: purchaseOrder.total_amount || 0, 
+                                                                    status: purchaseOrder.status || 'draft', 
+                                                                    notes: purchaseOrder.notes || '',
+                                                                    lines: articlesData
+                                                                });
+                                                                setPoItems(Array.isArray(purchaseOrder.items) ? purchaseOrder.items : []);
+                                                                setIsCreatingPurchaseOrder(true);
+                                                                showToast('PO chargée pour modification', 'success');
+                                                            } else {
+                                                                console.error('purchaseOrder est null/undefined');
+                                                                showToast('Erreur: données non trouvées', 'error');
+                                                            }
+                                                        } catch (error) {
+                                                            console.error('Erreur chargement PO:', error);
+                                                            showToast('Erreur lors du chargement', 'error');
+                                                        } finally {
+                                                            setIsLoadingForEdit(false);
+                                                        }
+                                                    }}
+                                                    title="Modifier"
+                                                >
+                                                    {isLoadingForEdit && po.status === 'draft' ? <Loader size={16} style={{animation: 'spin 1s linear infinite'}} /> : <Edit2 size={16} />} {isLoadingForEdit ? 'Chargement...' : 'Modifier'}
+                                                </button>
+                                                )}
+                                                {po.status === 'sent' && (
+                                                <button
+                                                    className="po-action-btn receive"
+                                                    onClick={() => setIsReceivingPO(po.id)}
+                                                    title="Réceptionner"
+                                                >
+                                                    <CheckCircle2 size={16} /> Réceptionner
+                                                </button>
+                                                )}
+                                                {po.status === 'draft' && (
+                                                <>
+                                                <button
+                                                    className="po-action-btn"
+                                                    onClick={() => {
+                                                        dispatch(updatePurchaseOrderStatus({ id: po.id, status: 'sent', token: sessionStorage.getItem('token') }));
+                                                        setTimeout(() => dispatch(getAllPurchaseOrders(sessionStorage.getItem('token'))), 500);
+                                                    }}
+                                                    title="Envoyer"
+                                                >
+                                                    <Mail size={16} /> Envoyer
+                                                </button>
+                                                <button
+                                                    className="po-action-btn delete"
+                                                    disabled={deletingPO === po.id}
+                                                    onClick={() => handleDeletePurchaseOrder(po.id)}
+                                                    title="Supprimer"
+                                                >
+                                                    {deletingPO === po.id ? <Loader size={16} style={{animation: 'spin 1s linear infinite'}} /> : <Trash2 size={16} />} {deletingPO === po.id ? 'Suppression...' : 'Supprimer'}
+                                                </button>
+                                                </>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    ) : (
+                        <div className="po-empty">
+                            <div className="po-empty-icon">📦</div>
+                            <p>Aucune commande d'achat trouvée</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Create/Edit PO Modal */}
+                {isCreatingPurchaseOrder && (
+                    <div className="admin-overlay" onClick={() => setIsCreatingPurchaseOrder(false)}>
+                        <motion.div
+                            className="admin-modal large"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="modal-header">
+                                <h3>{editingPurchaseOrder ? 'Modifier Commande d\'Achat' : 'Nouvelle Commande d\'Achat'}</h3>
+                                <button disabled={isSavingPO} onClick={() => { setIsCreatingPurchaseOrder(false); setEditingPurchaseOrder(null); setPoItems([]); setNewPurchaseOrder({ supplier_id: '', warehouse_id: '', total_amount: 0, status: 'draft', notes: '', lines: [] }); }} className="close-btn" style={{ opacity: isSavingPO ? 0.6 : 1, cursor: isSavingPO ? 'not-allowed' : 'pointer' }}>
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div className="modal-body">
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Fournisseur {console.log(newPurchaseOrder)}</label>
+                                        <select
+                                            disabled={isSavingPO}
+                                            value={newPurchaseOrder.supplier_id}
+                                            onChange={(e) => setNewPurchaseOrder({ ...newPurchaseOrder, supplier_id: e.target.value })}
+                                            style={{ opacity: isSavingPO ? 0.6 : 1, cursor: isSavingPO ? 'not-allowed' : 'pointer' }}
+                                        >
+                                            <option value="">Sélectionner un fournisseur</option>
+                                            {suppliers.map((s) => (
+                                                <option key={s.id} value={s.id}>{s.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Entrepôt de Destination</label>
+                                        <select
+                                            disabled={isSavingPO}
+                                            value={newPurchaseOrder.warehouse_id}
+                                            onChange={(e) => setNewPurchaseOrder({ ...newPurchaseOrder, warehouse_id: e.target.value })}
+                                            style={{ opacity: isSavingPO ? 0.6 : 1, cursor: isSavingPO ? 'not-allowed' : 'pointer' }}
+                                        >
+                                            <option value="">Sélectionner un entrepôt</option>
+                                            {(Array.isArray(warehouses) ? warehouses : []).map((w) => (
+                                                <option key={w.id} value={w.id}>{w.name} - {w.location}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="form-group">
+                                    <label>Notes</label>
+                                    <textarea
+                                        disabled={isSavingPO}
+                                        value={newPurchaseOrder.notes}
+                                        onChange={(e) => setNewPurchaseOrder({ ...newPurchaseOrder, notes: e.target.value })}
+                                        style={{ opacity: isSavingPO ? 0.6 : 1, cursor: isSavingPO ? 'not-allowed' : 'default' }}
+                                        placeholder="Notes additionnelles..."
+                                        rows="2"
+                                    />
+                                </div>
+
+                                {/* Articles Section */}
+                                <div className="po-articles-section">
+                                    <div className="section-header">
+                                        <h4>Articles de la Commande</h4>
+                                        <button 
+                                            disabled={isSavingPO}
+                                            className="small-btn add-btn"
+                                            onClick={() => setShowPoItemModal(true)}
+                                            style={{ opacity: isSavingPO ? 0.6 : 1, cursor: isSavingPO ? 'not-allowed' : 'pointer' }}
+                                        >
+                                            <Plus size={14} /> Ajouter Article
+                                        </button>
+                                    </div>
+
+                                    {newPurchaseOrder.lines.length > 0 ? (
+                                        <div className="po-items-list">
+                                            {newPurchaseOrder.lines.map((item, idx) => (
+                                                <div key={idx} className="po-item-card">
+                                                    <div className="po-item-info">
+                                                        <div className="po-item-name">{item.product_name}</div>
+                                                        <div className="po-item-details">
+                                                            {item.quantity} x {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.unit_price)} = <strong>{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.quantity * item.unit_price)}</strong>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        className="delete-btn"
+                                                        onClick={() => setNewPurchaseOrder({ ...newPurchaseOrder, lines: newPurchaseOrder.lines.filter((_, delIdx) => delIdx !== idx) })}
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            <div className="po-items-total">
+                                                <strong>Montant Total: {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(newPurchaseOrder.lines.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0))}</strong>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="po-empty-items">
+                                            <p>Aucun article ajouté. Cliquez sur "Ajouter Article" pour commencer.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button 
+                                    disabled={isSavingPO}
+                                    onClick={() => { setIsCreatingPurchaseOrder(false); setEditingPurchaseOrder(null); setPoItems([]); setNewPurchaseOrder({ supplier_id: '', warehouse_id: '', total_amount: 0, status: 'draft', notes: '', lines: []  }); }} 
+                                    className="btn-cancel"
+                                    style={{ opacity: isSavingPO ? 0.6 : 1, cursor: isSavingPO ? 'not-allowed' : 'pointer' }}
+                                >
+                                    Annuler
+                                </button>
+                                <button
+                                    disabled={isSavingPO}
+                                    onClick={() => {
+                                        console.log('Tentative de ' + (editingPurchaseOrder ? 'modification' : 'création') + ' de commande d\'achat');
+                                        console.log('Fournisseur ID:', newPurchaseOrder.supplier_id);
+                                        console.log('Entrepôt ID:', newPurchaseOrder.warehouse_id);
+                                        console.log('Articles:', poItems);
+                                        
+                                        if (newPurchaseOrder.supplier_id && newPurchaseOrder.warehouse_id && newPurchaseOrder.lines.length > 0) {
+                                            setIsSavingPO(true);
+                                            const totalAmount = newPurchaseOrder.lines.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+                                            console.log('Montant total calculé:', totalAmount);
+                                            
+                                            // Format the payload with lines array
+                                            const payloadData = {
+                                                supplier_id: newPurchaseOrder.supplier_id,
+                                                warehouse_id: newPurchaseOrder.warehouse_id,
+                                                total_amount: totalAmount,
+                                                status: newPurchaseOrder.status || 'draft',
+                                                notes: newPurchaseOrder.notes || '',
+                                                lines: newPurchaseOrder.lines.map(item => ({
+                                                    product_id: item.product_id,
+                                                    product_name: item.product_name,
+                                                    quantity: item.quantity,
+                                                    unit_price: item.unit_price,
+                                                    received_quantity: item.received_quantity || 0
+                                                }))
+                                            };
+                                            console.log('Données de la commande d\'achat:', payloadData);
+                                            
+                                            const token = sessionStorage.getItem('token');
+                                            if (editingPurchaseOrder) {
+                                                // Modification
+                                                dispatch(updatePurchaseOrder({ 
+                                                    id: editingPurchaseOrder.id,
+                                                    orderData: payloadData, 
+                                                    token: token 
+                                                }));
+                                                showToast('Modification de la commande d\'achat en cours...', 'success');
+                                                console.log('Commande d\'achat modifiée avec succès');
+                                                setTimeout(() => {
+                                                    dispatch(getAllPurchaseOrders(token));
+                                                    setIsSavingPO(false);
+                                                }, 500);
+                                            } else {
+                                                // Création
+                                                dispatch(createPurchaseOrder({ 
+                                                    orderData: payloadData, 
+                                                    token: token 
+                                                }));
+                                                showToast('Création de la commande d\'achat en cours...', 'success');
+                                                console.log('Commande d\'achat créée avec succès');
+                                                setTimeout(() => {
+                                                    dispatch(getAllPurchaseOrders(token));
+                                                    setIsSavingPO(false);
+                                                }, 500);
+                                            }
+                                            
+                                            setNewPurchaseOrder({ supplier_id: '', warehouse_id: '', total_amount: 0, status: 'draft', notes: '', lines: [] });
+                                            setPoItems([]);
+                                            setNewPoItem({ product_id: '', quantity: 1, unit_price: 0, received_quantity: 0 });
+                                            setIsCreatingPurchaseOrder(false);
+                                            setEditingPurchaseOrder(null);
+                                        } else {
+                                            console.error('Validation échouée - Champs manquants');
+                                            showToast('Veuillez remplir tous les champs et ajouter au moins un article', 'error');
+                                            setIsSavingPO(false);
+                                        }
+                                    }}
+                                    className="btn-save"
+                                    style={{ opacity: isSavingPO ? 0.6 : 1, cursor: isSavingPO ? 'not-allowed' : 'pointer' }}
+                                >
+                                    {isSavingPO ? <Loader size={16} style={{animation: 'spin 1s linear infinite', marginRight: '8px'}} /> : <Save size={16} style={{marginRight: '8px'}} />} {isSavingPO ? 'En cours...' : (editingPurchaseOrder ? 'Modifier' : 'Créer')}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+
+                {/* Add Item Modal */}
+                {showPoItemModal && (
+                    <div className="admin-overlay" onClick={() => setShowPoItemModal(false)}>
+                        <motion.div
+                            className="admin-modal"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="modal-header">
+                                <h3>Ajouter un Article</h3>
+                                <button onClick={() => setShowPoItemModal(false)} className="close-btn">
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div className="modal-body">
+                                <div className="form-group">
+                                    <label>Produit</label>
+                                    <select
+                                        value={newPoItem.product_id}
+                                        onChange={(e) => {
+                                            console.log('Sélection produit - value:', e.target.value);
+                                            const selectedProduct = products.find(p => p.id === parseInt(e.target.value));
+                                            console.log('Produit trouvé:', selectedProduct);
+                                            setNewPoItem({
+                                                ...newPoItem,
+                                                product_id: e.target.value,
+                                                product_name: selectedProduct?.name || '',
+                                                unit_price: selectedProduct?.price || 0
+                                            });
+                                        }}
+                                    >
+                                        <option value="">Sélectionner un produit</option>
+                                        {products.map((p) => (
+                                            <option key={p.id} value={p.id}>{p.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Quantité</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={newPoItem.quantity}
+                                            onChange={(e) => setNewPoItem({ ...newPoItem, quantity: parseInt(e.target.value) || 0 })}
+                                            placeholder="0"
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Prix Unitaire (auto-rempli)</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={newPoItem.unit_price}
+                                            onChange={(e) => setNewPoItem({ ...newPoItem, unit_price: parseFloat(e.target.value) || 0 })}
+                                            placeholder="Rempli automatiquement"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="form-group">
+                                    <label>Quantité Reçue</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={newPoItem.received_quantity}
+                                        onChange={(e) => setNewPoItem({ ...newPoItem, received_quantity: parseInt(e.target.value) || 0 })}
+                                        placeholder="0"
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <div className="price-total">
+                                        <span>Montant: </span>
+                                        <strong>{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format((newPoItem.quantity || 0) * (newPoItem.unit_price || 0))}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button onClick={() => setShowPoItemModal(false)} className="btn-cancel">
+                                    Annuler
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        console.log('Tentative d\'ajout d\'article');
+                                        console.log('newPoItem:', newPoItem);
+                                        console.log('product_id:', newPoItem.product_id, 'quantity:', newPoItem.quantity, 'unit_price:', newPoItem.unit_price);
+                                        
+                                        if (newPoItem.product_id && newPoItem.quantity > 0 && newPoItem.unit_price > 0) {
+                                            console.log('Validation réussie - Ajout de l\'article');
+                                            setNewPurchaseOrder({ ...newPurchaseOrder, lines: [...newPurchaseOrder.lines, newPoItem] });
+                                            setNewPoItem({ product_id: '', quantity: 1, unit_price: 0, received_quantity: 0 });
+                                            setShowPoItemModal(false);
+                                            showToast('Article ajouté avec succès', 'success');
+                                        } else {
+                                            console.error('Validation échouée');
+                                            showToast('Veuillez remplir tous les champs correctement:\n- Sélectionner un produit\n- Quantité > 0\n- Prix unitaire > 0', 'error');
+                                        }
+                                    }}
+                                    className="btn-save"
+                                >
+                                    <Plus size={16} /> Ajouter
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </motion.div>
+        );
+    };
+
     const renderOrders = () => {
         // Apply filters
         let filteredOrders = orders;
@@ -2696,6 +4257,173 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
         }
     };
 
+    const renderCustomerReturns = () => {
+        // Ensure customerReturns is an array and filter out undefined/null values
+        const crList = (Array.isArray(customerReturns) ? customerReturns : []).filter(r => r && typeof r === 'object');
+        
+        const filteredReturns = crList.filter(r => {
+            const matchesSearch = !customerReturnSearchQuery || 
+                r.return_number?.includes(customerReturnSearchQuery) ||
+                r.customer_name?.toLowerCase().includes(customerReturnSearchQuery.toLowerCase()) ||
+                r.product_name?.toLowerCase().includes(customerReturnSearchQuery.toLowerCase());
+            const matchesStatus = customerReturnStatusFilter === 'all' || r.status === customerReturnStatusFilter;
+            return matchesSearch && matchesStatus;
+        });
+
+        const approvedReturns = crList.filter(r => r?.status === 'approved').length;
+        const totalRefunds = crList.reduce((sum, r) => sum + (parseFloat(r?.refund_amount) || 0), 0);
+
+        return (
+            <motion.div key="customerReturns" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }} className="returns-container">
+                <h2><RotateCcw size={28} style={{ color: 'var(--primary)' }} /> Retours Clients</h2>
+                <div className="returns-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '20px' }}>
+                    <div style={{ background: 'var(--bg-card)', padding: '15px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Total Retours</div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: '700' }}>{crList.length}</div>
+                    </div>
+                    <div style={{ background: 'var(--bg-card)', padding: '15px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Approuvés</div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: '700', color: 'var(--primary)' }}>{approvedReturns}</div>
+                    </div>
+                    <div style={{ background: 'var(--bg-card)', padding: '15px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Montant Total</div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: '700' }}>{totalRefunds.toFixed(2)} DH</div>
+                    </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                    <input type="text" placeholder="Rechercher..." value={customerReturnSearchQuery} onChange={(e) => setCustomerReturnSearchQuery(e.target.value)} style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)' }} />
+                    <select value={customerReturnStatusFilter} onChange={(e) => setCustomerReturnStatusFilter(e.target.value)} style={{ padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                        <option value="all">Tous les statuts</option>
+                        <option value="pending">En attente</option>
+                        <option value="approved">Approuvé</option>
+                        <option value="received">Reçu</option>
+                    </select>
+                    <button className="primary-btn" onClick={() => setIsCreatingCustomerReturn(true)}><Plus size={18} /> Nouveau Retour</button>
+                </div>
+
+                {filteredReturns.length > 0 ? (
+                    <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <thead>
+                                <tr style={{ background: 'var(--bg-card)', borderBottom: '2px solid var(--border-color)' }}>
+                                    <th style={{ padding: '10px', textAlign: 'left' }}>Numéro Retour</th>
+                                    <th style={{ padding: '10px', textAlign: 'left' }}>Client</th>
+                                    <th style={{ padding: '10px', textAlign: 'left' }}>Produit</th>
+                                    <th style={{ padding: '10px', textAlign: 'left' }}>Quantité</th>
+                                    <th style={{ padding: '10px', textAlign: 'left' }}>Raison</th>
+                                    <th style={{ padding: '10px', textAlign: 'left' }}>Statut</th>
+                                    <th style={{ padding: '10px', textAlign: 'left' }}>Montant</th>
+                                    <th style={{ padding: '10px', textAlign: 'left' }}>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredReturns.map((ret, idx) => (
+                                    <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                        <td style={{ padding: '10px' }}><strong>{ret.return_number}</strong></td>
+                                        <td style={{ padding: '10px' }}>{ret.customer_name}</td>
+                                        <td style={{ padding: '10px' }}>{ret.product_name}</td>
+                                        <td style={{ padding: '10px' }}>{ret.quantity_returned}</td>
+                                        <td style={{ padding: '10px' }}>{ret.reason}</td>
+                                        <td style={{ padding: '10px' }}><span style={{ display: 'inline-block', padding: '4px 8px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '600', background: ret.status === 'approved' ? '#d1fae5' : ret.status === 'received' ? '#dbeafe' : '#fef3c7', color: ret.status === 'approved' ? '#065f46' : ret.status === 'received' ? '#0c4a6e' : '#78350f' }}>{ret.status}</span></td>
+                                        <td style={{ padding: '10px' }}>{ret.refund_amount.toFixed(2)} DH</td>
+                                        <td style={{ padding: '10px' }}><button className="warehouse-action-btn" onClick={() => setViewingCustomerReturn(ret)}><Eye size={16} /> Voir</button></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Aucun retour client trouvé</div>
+                )}
+            </motion.div>
+        );
+    };
+
+    const renderSupplierReturns = () => {
+        // Ensure supplierReturns is an array and filter out undefined/null values
+        const srList = (Array.isArray(supplierReturns) ? supplierReturns : []).filter(r => r && typeof r === 'object');
+        
+        const filteredReturns = srList.filter(r => {
+            const matchesSearch = !supplierReturnSearchQuery || 
+                r.return_number?.includes(supplierReturnSearchQuery) ||
+                r.supplier_name?.toLowerCase().includes(supplierReturnSearchQuery.toLowerCase()) ||
+                r.product_name?.toLowerCase().includes(supplierReturnSearchQuery.toLowerCase());
+            const matchesStatus = supplierReturnStatusFilter === 'all' || r.status === supplierReturnStatusFilter;
+            return matchesSearch && matchesStatus;
+        });
+
+        const sentReturns = srList.filter(r => r?.status === 'sent').length;
+        const totalCredits = srList.reduce((sum, r) => sum + (parseFloat(r?.credit_amount) || 0), 0);
+
+        return (
+            <motion.div key="supplierReturns" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }} className="returns-container">
+                <h2><RotateCcw size={28} style={{ color: 'var(--primary)' }} /> Retours Fournisseurs</h2>
+                <div className="returns-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '20px' }}>
+                    <div style={{ background: 'var(--bg-card)', padding: '15px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Total Retours</div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: '700' }}>{srList.length}</div>
+                    </div>
+                    <div style={{ background: 'var(--bg-card)', padding: '15px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Envoyés</div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: '700', color: 'var(--primary)' }}>{sentReturns}</div>
+                    </div>
+                    <div style={{ background: 'var(--bg-card)', padding: '15px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Montant Total</div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: '700' }}>{totalCredits.toFixed(2)} DH</div>
+                    </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                    <input type="text" placeholder="Rechercher..." value={supplierReturnSearchQuery} onChange={(e) => setSupplierReturnSearchQuery(e.target.value)} style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)' }} />
+                    <select value={supplierReturnStatusFilter} onChange={(e) => setSupplierReturnStatusFilter(e.target.value)} style={{ padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                        <option value="all">Tous les statuts</option>
+                        <option value="pending">En attente</option>
+                        <option value="approved">Approuvé</option>
+                        <option value="sent">Envoyé</option>
+                        <option value="received">Reçu</option>
+                    </select>
+                    <button className="primary-btn" onClick={() => setIsCreatingSupplierReturn(true)}><Plus size={18} /> Nouveau Retour</button>
+                </div>
+
+                {filteredReturns.length > 0 ? (
+                    <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <thead>
+                                <tr style={{ background: 'var(--bg-card)', borderBottom: '2px solid var(--border-color)' }}>
+                                    <th style={{ padding: '10px', textAlign: 'left' }}>Numéro Retour</th>
+                                    <th style={{ padding: '10px', textAlign: 'left' }}>Fournisseur</th>
+                                    <th style={{ padding: '10px', textAlign: 'left' }}>Produit</th>
+                                    <th style={{ padding: '10px', textAlign: 'left' }}>Quantité</th>
+                                    <th style={{ padding: '10px', textAlign: 'left' }}>Raison</th>
+                                    <th style={{ padding: '10px', textAlign: 'left' }}>Statut</th>
+                                    <th style={{ padding: '10px', textAlign: 'left' }}>Crédit</th>
+                                    <th style={{ padding: '10px', textAlign: 'left' }}>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredReturns.map((ret, idx) => (
+                                    <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                        <td style={{ padding: '10px' }}><strong>{ret.return_number}</strong></td>
+                                        <td style={{ padding: '10px' }}>{ret.supplier_name}</td>
+                                        <td style={{ padding: '10px' }}>{ret.product_name}</td>
+                                        <td style={{ padding: '10px' }}>{ret.quantity_returned}</td>
+                                        <td style={{ padding: '10px' }}>{ret.reason}</td>
+                                        <td style={{ padding: '10px' }}><span style={{ display: 'inline-block', padding: '4px 8px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '600', background: ret.status === 'sent' ? '#bfdbfe' : ret.status === 'received' ? '#d1fae5' : '#fef3c7', color: ret.status === 'sent' ? '#1e3a8a' : ret.status === 'received' ? '#065f46' : '#78350f' }}>{ret.status}</span></td>
+                                        <td style={{ padding: '10px' }}>{ret.credit_amount.toFixed(2)} DH</td>
+                                        <td style={{ padding: '10px' }}><button className="warehouse-action-btn" onClick={() => setViewingSupplierReturn(ret)}><Eye size={16} /> Voir</button></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Aucun retour fournisseur trouvé</div>
+                )}
+            </motion.div>
+        );
+    };
+
     const renderRoles = () => {
         const paginatedRoles = paginate(roles, currentRolePage);
         const totalPages = getTotalPages(roles);
@@ -2942,6 +4670,48 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                         <Package size={20} /> Produits
                     </button>
                     <button
+                        className={`nav-item ${activeTab === 'stock' ? 'active' : ''}`}
+                        onClick={() => { setActiveTab('stock'); setIsSidebarOpen(false); }}
+                    >
+                        <Truck size={20} /> Stock
+                    </button>
+                    <button
+                        className={`nav-item ${activeTab === 'warehouses' ? 'active' : ''}`}
+                        onClick={() => { setActiveTab('warehouses'); setIsSidebarOpen(false); }}
+                    >
+                        <Building2 size={20} /> Entrepôts
+                    </button>
+                    <button
+                        className={`nav-item ${activeTab === 'suppliers' ? 'active' : ''}`}
+                        onClick={() => { setActiveTab('suppliers'); setIsSidebarOpen(false); }}
+                    >
+                        <UserCheck size={20} /> Fournisseurs
+                    </button>
+                    {userRole?.code === 'ADMIN' && (
+                    <button
+                        className={`nav-item ${activeTab === 'purchaseOrders' ? 'active' : ''}`}
+                        onClick={() => { setActiveTab('purchaseOrders'); setIsSidebarOpen(false); }}
+                    >
+                        <ShoppingBag size={20} /> Commandes Achat
+                    </button>
+                    )}
+                    {userRole?.code === 'ADMIN' && (
+                    <button
+                        className={`nav-item ${activeTab === 'customerReturns' ? 'active' : ''}`}
+                        onClick={() => { setActiveTab('customerReturns'); setIsSidebarOpen(false); }}
+                    >
+                        <RotateCcw size={20} /> Retours Clients
+                    </button>
+                    )}
+                    {userRole?.code === 'ADMIN' && (
+                    <button
+                        className={`nav-item ${activeTab === 'supplierReturns' ? 'active' : ''}`}
+                        onClick={() => { setActiveTab('supplierReturns'); setIsSidebarOpen(false); }}
+                    >
+                        <RotateCcw size={20} /> Retours Fournisseurs
+                    </button>
+                    )}
+                    <button
                         className={`nav-item ${activeTab === 'orders' ? 'active' : ''}`}
                         onClick={() => { setActiveTab('orders'); setIsSidebarOpen(false); }}
                     >
@@ -2985,6 +4755,12 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                             {activeTab === 'roles' && userRole?.code === 'ADMIN' && renderRoles()}
                             {activeTab === 'banks' && userRole?.code === 'ADMIN' && renderBanks()}
                             {activeTab === 'products' && renderProducts()}
+                            {activeTab === 'stock' && renderStock()}
+                            {activeTab === 'warehouses' && renderWarehouses()}
+                            {activeTab === 'suppliers' && renderSuppliers()}
+                            {activeTab === 'purchaseOrders' && userRole?.code === 'ADMIN' && renderPurchaseOrders()}
+                            {activeTab === 'customerReturns' && userRole?.code === 'ADMIN' && renderCustomerReturns()}
+                            {activeTab === 'supplierReturns' && userRole?.code === 'ADMIN' && renderSupplierReturns()}
                             {activeTab === 'orders' && renderOrders()}
                         </motion.div>
                     </AnimatePresence>
@@ -3477,6 +5253,20 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                 {userErrors.role_id && <span className="error-text">{userErrors.role_id}</span>}
                             </div>
                             <div className="form-group">
+                                <label>Type d'utilisateur *</label>
+                                <select
+                                    className="admin-select"
+                                    value={newUser.user_type || ''}
+                                    onChange={e => setNewUser({ ...newUser, user_type: e.target.value })}
+                                >
+                                    <option value="">Sélectionner un type</option>
+                                    <option value="candy">Candy</option>
+                                    <option value="ams">AMS</option>
+                                    <option value="both">Les deux</option>
+                                </select>
+                                {userErrors.user_type && <span className="error-text">{userErrors.user_type}</span>}
+                            </div>
+                            <div className="form-group">
                                 <label>Remise (%)</label>
                                 <input
                                     type="number"
@@ -3717,6 +5507,31 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                         className={productErrors.stock ? 'error' : ''}
                                     />
                                     {productErrors.stock && <span className="error-text">{productErrors.stock}</span>}
+                                </div>
+                                <div className="form-group">
+                                    <label>Type de produit *</label>
+                                    <select
+                                        className="admin-select"
+                                        value={newProduct.product_type || ''}
+                                        onChange={e => setNewProduct({ ...newProduct, product_type: e.target.value })}
+                                    >
+                                        <option value="">Sélectionner un type</option>
+                                        <option value="candy">Candy</option>
+                                        <option value="ams">AMS</option>
+                                        <option value="both">Les deux</option>
+                                    </select>
+                                    {productErrors.product_type && <span className="error-text">{productErrors.product_type}</span>}
+                                </div>
+                                <div className="form-group">
+                                    <label>Stock de sécurité</label>
+                                    <input
+                                        type="number"
+                                        placeholder="Stock de sécurité"
+                                        value={newProduct.stock_securite || ''}
+                                        onChange={e => setNewProduct({ ...newProduct, stock_securite: e.target.value })}
+                                        className={productErrors.stock_securite ? 'error' : ''}
+                                    />
+                                    {productErrors.stock_securite && <span className="error-text">{productErrors.stock_securite}</span>}
                                 </div>
                                 <div className="form-group">
                                     <label>Unité d'emballage</label>
@@ -5480,6 +7295,1133 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* PO Details Modal */}
+            {viewingPO && (
+                <div className="admin-overlay" onClick={() => setViewingPO(null)}>
+                    <motion.div
+                        className="admin-modal large"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="modal-header">
+                            <h3>Détails Commande PO-{viewingPO.id}</h3>
+                            <button onClick={() => setViewingPO(null)} className="close-btn">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label>Fournisseur</label>
+                                    <input type="text" value={viewingPO.supplier_name || 'N/A'} disabled />
+                                </div>
+                                <div className="form-group">
+                                    <label>Entrepôt</label>
+                                    <input type="text" value={`${viewingPO.warehouse_id || 'N/A'}`} disabled />
+                                </div>
+                            </div>
+
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label>Statut</label>
+                                    <select
+                                        value={viewingPO.status}
+                                        onChange={(e) => {
+                                            setViewingPO({ ...viewingPO, status: e.target.value });
+                                            if (sessionStorage.getItem('token')) {
+                                                dispatch(updatePurchaseOrderStatus({ id: viewingPO.id, status: e.target.value, token: sessionStorage.getItem('token') }));
+                                            }
+                                        }}
+                                    >
+                                        <option value="draft">Brouillon</option>
+                                        <option value="sent">Envoyée</option>
+                                        <option value="received">Reçue</option>
+                                        <option value="cancelled">Annulée</option>
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label>Montant Total</label>
+                                    <input type="text" value={new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(viewingPO.total_amount || 0)} disabled />
+                                </div>
+                            </div>
+
+                            <div className="form-group">
+                                <label>Notes</label>
+                                <textarea value={viewingPO.notes || ''} disabled rows="3" />
+                            </div>
+
+                            {/* Items Section */}
+                            <div className="po-details-items">
+                                <h4>Articles ({(viewingPO.lines?.length || viewingPO.items?.length) || 0})</h4>
+                                {(viewingPO.lines && viewingPO.lines.length > 0) || (viewingPO.items && viewingPO.items.length > 0) ? (
+                                    <table className="po-items-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Produit</th>
+                                                <th>Quantité</th>
+                                                <th>Prix Unitaire</th>
+                                                <th>Total</th>
+                                                {(viewingPO.lines?.length > 0) && <th>Quantité Reçue</th>}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {(viewingPO.lines || viewingPO.items || []).map((item, idx) => (
+                                                <tr key={idx}>
+                                                    <td>{item.product_name || 'N/A'}</td>
+                                                    <td>{item.quantity}</td>
+                                                    <td>{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.unit_price || 0)}</td>
+                                                    <td className="amount">{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format((item.quantity || 0) * (item.unit_price || 0))}</td>
+                                                    {(viewingPO.lines?.length > 0) && <td>{item.received_quantity || 0}</td>}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                ) : (
+                                    <p className="no-data">Aucun article dans cette commande</p>
+                                )}
+                            </div>
+
+                            {/* History Section */}
+                            <div className="po-details-history">
+                                <h4>Historique</h4>
+                                {poHistoryState && poHistoryState.length > 0 ? (
+                                    <div className="history-timeline">
+                                        {poHistoryState.map((event, idx) => (
+                                            <div key={idx} className="history-item">
+                                                <div className="history-dot"></div>
+                                                <div className="history-content">
+                                                    <div className="history-action">{event.action || 'Mise à jour'}</div>
+                                                    <div className="history-date">{new Date(event.created_at || event.timestamp).toLocaleDateString('fr-FR')}</div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="no-data">Aucun historique disponible</p>
+                                )}
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button onClick={() => setViewingPO(null)} className="btn-cancel">
+                                Fermer
+                            </button>
+                            {viewingPO.status === 'sent' && (
+                            <button
+                                onClick={() => {
+                                    setIsReceivingPO(viewingPO.id);
+                                    setViewingPO(null);
+                                }}
+                                className="btn-save"
+                            >
+                                <CheckCircle2 size={16} /> Réceptionner
+                            </button>
+                            )}
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* Delete PO Confirmation Modal */}
+            {deletingPO && (
+                <div className="admin-overlay">
+                    <motion.div
+                        className="admin-modal"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        style={{ maxWidth: '400px' }}
+                    >
+                        <div className="modal-header">
+                            <h2 style={{ fontSize: '1.1rem' }}>Confirmer la suppression</h2>
+                            <button className="close-btn" onClick={() => setDeletingPO(null)}>
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <div className="modal-body" style={{ padding: '15px 20px' }}>
+                            <div style={{ textAlign: 'center' }}>
+                                <div style={{
+                                    width: '48px',
+                                    height: '48px',
+                                    margin: '0 auto 12px',
+                                    borderRadius: '50%',
+                                    background: 'rgba(239, 68, 68, 0.1)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}>
+                                    <Trash2 size={22} color="#ef4444" />
+                                </div>
+                                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5' }}>
+                                    Voulez-vous vraiment supprimer cette commande d'achat ?<br />
+                                    Cette action est irréversible.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="cancel-pill-btn" onClick={() => setDeletingPO(null)}>
+                                Annuler
+                            </button>
+                            <button
+                                className="save-pill-btn"
+                                onClick={confirmDeletePurchaseOrder}
+                                style={{ background: '#ef4444' }}
+                            >
+                                <Trash2 size={16} /> Supprimer
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* Receive PO Modal */}
+            {isReceivingPO && (
+                <div className="admin-overlay" onClick={() => setIsReceivingPO(false)}>
+                    <motion.div
+                        className="admin-modal"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="modal-header">
+                            <h3>Réceptionner Commande</h3>
+                            <button onClick={() => setIsReceivingPO(false)} className="close-btn">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <p>Confirmer la réception de la commande PO-{isReceivingPO}?</p>
+                            <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '10px' }}>
+                                Cela mettra à jour le statut en "Reçue" et ajustera les stocks de l'entrepôt.
+                            </p>
+                            <div className="po-receive-items">
+                                <h4 style={{ marginTop: '20px', marginBottom: '10px' }}>Articles à Réceptionner</h4>
+                                {purchaseOrders.find(po => po.id === isReceivingPO)?.items?.map((item, idx) => (
+                                    <div key={idx} className="receive-item">
+                                        <div className="receive-item-info">
+                                            <div className="receive-item-name">{item.product_name}</div>
+                                            <div className="receive-item-qty">Quantité: {item.quantity}</div>
+                                        </div>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            max={item.quantity}
+                                            placeholder="Reçu"
+                                            value={poReceiveItems[item.id] || ''}
+                                            onChange={(e) => setPoReceiveItems({ ...poReceiveItems, [item.id]: parseInt(e.target.value) || 0 })}
+                                            className="receive-qty-input"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button onClick={() => setIsReceivingPO(false)} className="btn-cancel">
+                                Annuler
+                            </button>
+                            <button
+                                onClick={() => {
+                                    dispatch(receivePurchaseOrder({ 
+                                        id: isReceivingPO, 
+                                        receivedItems: poReceiveItems, 
+                                        token: sessionStorage.getItem('token') 
+                                    }));
+                                    showToast('Commande reçue avec succès', 'success');
+                                    setIsReceivingPO(false);
+                                    setPoReceiveItems({});
+                                }}
+                                className="btn-save"
+                            >
+                                <CheckCircle2 size={16} /> Confirmer Réception
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* Create Warehouse Modal */}
+            {isCreatingWarehouse && (
+                <div className="admin-overlay" onClick={() => { setIsCreatingWarehouse(false); setNewWarehouse({ name: '', location: '', city: '', capacity: 0, is_active: true }); }}>
+                    <motion.div
+                        className="admin-modal"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="modal-header">
+                            <h3><Building2 size={20} style={{ marginRight: '10px' }} />Nouvel Entrepôt</h3>
+                            <button onClick={() => { setIsCreatingWarehouse(false); setNewWarehouse({ name: '', location: '', city: '', capacity: 0, is_active: true }); }} className="close-btn">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="form-group">
+                                <label>Nom de l'Entrepôt</label>
+                                <input
+                                    type="text"
+                                    placeholder="Ex: Entrepôt Principal"
+                                    value={newWarehouse.name}
+                                    onChange={(e) => setNewWarehouse({ ...newWarehouse, name: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Localisation</label>
+                                <input
+                                    type="text"
+                                    placeholder="Ex: 123 Rue de Paris"
+                                    value={newWarehouse.location}
+                                    onChange={(e) => setNewWarehouse({ ...newWarehouse, location: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label>Ville</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ex: Paris"
+                                        value={newWarehouse.city}
+                                        onChange={(e) => setNewWarehouse({ ...newWarehouse, city: e.target.value })}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Capacité (unités)</label>
+                                    <input
+                                        type="number"
+                                        placeholder="0"
+                                        value={newWarehouse.capacity}
+                                        onChange={(e) => setNewWarehouse({ ...newWarehouse, capacity: parseInt(e.target.value) || 0 })}
+                                    />
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        checked={newWarehouse.is_active}
+                                        onChange={(e) => setNewWarehouse({ ...newWarehouse, is_active: e.target.checked })}
+                                    />
+                                    <span style={{ marginLeft: '8px' }}>Entrepôt actif</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button 
+                                onClick={() => { setIsCreatingWarehouse(false); setNewWarehouse({ name: '', location: '', city: '', capacity: 0, is_active: true }); }} 
+                                className="btn-cancel"
+                            >
+                                Annuler
+                            </button>
+                            <button
+                                onClick={() => {
+                                    if (newWarehouse.name && newWarehouse.location && newWarehouse.city && newWarehouse.capacity > 0) {
+                                        dispatch(createWarehouse({ warehouseData: newWarehouse, token: sessionStorage.getItem('token') }));
+                                        setNewWarehouse({ name: '', location: '', city: '', capacity: 0, is_active: true });
+                                        setIsCreatingWarehouse(false);
+                                        showToast('Entrepôt créé avec succès', 'success');
+                                        setTimeout(() => dispatch(getAllWarehouses(sessionStorage.getItem('token'))), 500);
+                                    } else {
+                                        showToast('Veuillez remplir tous les champs correctement', 'error');
+                                    }
+                                }}
+                                className="btn-save"
+                            >
+                                <Save size={16} /> Créer Entrepôt
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* Edit Warehouse Modal */}
+            {editingWarehouse && (
+                <div className="admin-overlay" onClick={() => setEditingWarehouse(null)}>
+                    <motion.div
+                        className="admin-modal"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="modal-header">
+                            <h3><Building2 size={20} style={{ marginRight: '10px' }} />Modifier l'Entrepôt</h3>
+                            <button disabled={isSavingWarehouse} onClick={() => setEditingWarehouse(null)} className="close-btn" style={{ opacity: isSavingWarehouse ? 0.6 : 1, cursor: isSavingWarehouse ? 'not-allowed' : 'pointer' }}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="form-group">
+                                <label>Nom de l'Entrepôt</label>
+                                <input
+                                    disabled={isSavingWarehouse}
+                                    type="text"
+                                    placeholder="Ex: Entrepôt Principal"
+                                    value={editingWarehouse.name}
+                                    onChange={(e) => setEditingWarehouse({ ...editingWarehouse, name: e.target.value })}
+                                    style={{ opacity: isSavingWarehouse ? 0.6 : 1, cursor: isSavingWarehouse ? 'not-allowed' : 'default' }}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Localisation</label>
+                                <input
+                                    type="text"
+                                    placeholder="Ex: 123 Rue de Paris"
+                                    value={editingWarehouse.location}
+                                    onChange={(e) => setEditingWarehouse({ ...editingWarehouse, location: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label>Ville</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ex: Paris"
+                                        value={editingWarehouse.city}
+                                        onChange={(e) => setEditingWarehouse({ ...editingWarehouse, city: e.target.value })}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Capacité (unités)</label>
+                                    <input
+                                        type="number"
+                                        placeholder="0"
+                                        value={editingWarehouse.capacity}
+                                        onChange={(e) => setEditingWarehouse({ ...editingWarehouse, capacity: parseInt(e.target.value) || 0 })}
+                                    />
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        checked={editingWarehouse.is_active}
+                                        onChange={(e) => setEditingWarehouse({ ...editingWarehouse, is_active: e.target.checked })}
+                                    />
+                                    <span style={{ marginLeft: '8px' }}>Entrepôt actif</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button 
+                                disabled={isSavingWarehouse}
+                                onClick={() => setEditingWarehouse(null)} 
+                                className="btn-cancel"
+                                style={{ opacity: isSavingWarehouse ? 0.6 : 1, cursor: isSavingWarehouse ? 'not-allowed' : 'pointer' }}
+                            >
+                                Annuler
+                            </button>
+                            <button
+                                disabled={isSavingWarehouse}
+                                onClick={() => {
+                                    if (editingWarehouse.name && editingWarehouse.location && editingWarehouse.city && editingWarehouse.capacity > 0) {
+                                        setIsSavingWarehouse(true);
+                                        dispatch(updateWarehouse({ id: editingWarehouse.id, warehouseData: editingWarehouse, token: sessionStorage.getItem('token') }));
+                                        setTimeout(() => {
+                                            setEditingWarehouse(null);
+                                            setIsSavingWarehouse(false);
+                                            showToast('Entrepôt modifié avec succès', 'success');
+                                            dispatch(getAllWarehouses(sessionStorage.getItem('token')));
+                                        }, 500);
+                                    } else {
+                                        showToast('Veuillez remplir tous les champs correctement', 'error');
+                                    }
+                                }}
+                                className="btn-save"
+                                style={{ opacity: isSavingWarehouse ? 0.6 : 1, cursor: isSavingWarehouse ? 'not-allowed' : 'pointer' }}
+                            >
+                                {isSavingWarehouse ? <Loader size={16} style={{animation: 'spin 1s linear infinite', marginRight: '8px'}} /> : <Save size={16} style={{marginRight: '8px'}} />} {isSavingWarehouse ? 'En cours...' : 'Enregistrer les modifications'}
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* Delete Warehouse Confirmation Modal */}
+            {deletingWarehouse && (
+                <div className="admin-overlay">
+                    <motion.div
+                        className="admin-modal"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        style={{ maxWidth: '400px' }}
+                    >
+                        <div className="modal-header">
+                            <h2 style={{ fontSize: '1.1rem' }}>Confirmer la suppression</h2>
+                            <button className="close-btn" onClick={() => setDeletingWarehouse(null)}>
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <div className="modal-body" style={{ padding: '15px 20px' }}>
+                            <div style={{ textAlign: 'center' }}>
+                                <div style={{
+                                    width: '48px',
+                                    height: '48px',
+                                    margin: '0 auto 12px',
+                                    borderRadius: '50%',
+                                    background: 'rgba(239, 68, 68, 0.1)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}>
+                                    <Trash2 size={22} color="#ef4444" />
+                                </div>
+                                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5' }}>
+                                    Voulez-vous vraiment supprimer cet entrep\u00f4t ?<br />
+                                    Cette action est irr\u00e9versible.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="cancel-pill-btn" onClick={() => setDeletingWarehouse(null)}>
+                                Annuler
+                            </button>
+                            <button
+                                className="save-pill-btn"
+                                onClick={confirmDeleteWarehouse}
+                                style={{ background: '#ef4444' }}
+                            >
+                                <Trash2 size={16} /> Supprimer
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* Create Supplier Modal */}
+            {isCreatingSupplier && (
+                <div className="admin-overlay" onClick={() => { setIsCreatingSupplier(false); setNewSupplier({ name: '', email: '', phone: '', address: '', city: '', postal_code: '', country: '', payment_terms: '', is_active: true }); }}>
+                    <motion.div
+                        className="admin-modal large"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="modal-header">
+                            <h3><Factory size={20} style={{ marginRight: '10px' }} />Nouveau Fournisseur</h3>
+                            <button onClick={() => { setIsCreatingSupplier(false); setNewSupplier({ name: '', email: '', phone: '', address: '', city: '', postal_code: '', country: '', payment_terms: '', is_active: true }); }} className="close-btn">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="form-group">
+                                <label>Nom de l'Entreprise *</label>
+                                <input
+                                    type="text"
+                                    placeholder="Ex: AMS Foods Supplier"
+                                    value={newSupplier.name}
+                                    onChange={(e) => setNewSupplier({ ...newSupplier, name: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label>Email</label>
+                                    <input
+                                        type="email"
+                                        placeholder="contact@supplier.com"
+                                        value={newSupplier.email}
+                                        onChange={(e) => setNewSupplier({ ...newSupplier, email: e.target.value })}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Téléphone</label>
+                                    <input
+                                        type="tel"
+                                        placeholder="01 23 45 67 89"
+                                        value={newSupplier.phone}
+                                        onChange={(e) => setNewSupplier({ ...newSupplier, phone: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label>Adresse</label>
+                                <input
+                                    type="text"
+                                    placeholder="123 Rue de la Paix"
+                                    value={newSupplier.address}
+                                    onChange={(e) => setNewSupplier({ ...newSupplier, address: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label>Ville</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ex: Paris"
+                                        value={newSupplier.city}
+                                        onChange={(e) => setNewSupplier({ ...newSupplier, city: e.target.value })}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Code Postal</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ex: 75001"
+                                        value={newSupplier.postal_code}
+                                        onChange={(e) => setNewSupplier({ ...newSupplier, postal_code: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label>Pays</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ex: France"
+                                        value={newSupplier.country}
+                                        onChange={(e) => setNewSupplier({ ...newSupplier, country: e.target.value })}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Conditions de Paiement</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ex: Net 30"
+                                        value={newSupplier.payment_terms}
+                                        onChange={(e) => setNewSupplier({ ...newSupplier, payment_terms: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        checked={newSupplier.is_active}
+                                        onChange={(e) => setNewSupplier({ ...newSupplier, is_active: e.target.checked })}
+                                    />
+                                    <span style={{ marginLeft: '8px' }}>Fournisseur actif</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button 
+                                onClick={() => { setIsCreatingSupplier(false); setNewSupplier({ name: '', email: '', phone: '', address: '', city: '', postal_code: '', country: '', payment_terms: '', is_active: true }); }} 
+                                className="btn-cancel"
+                            >
+                                Annuler
+                            </button>
+                            <button
+                                onClick={() => {
+                                    if (newSupplier.name) {
+                                        dispatch(createSupplier({ supplierData: newSupplier, token: sessionStorage.getItem('token') }));
+                                        setNewSupplier({ name: '', email: '', phone: '', address: '', city: '', postal_code: '', country: '', payment_terms: '', is_active: true });
+                                        setIsCreatingSupplier(false);
+                                        showToast('Fournisseur créé avec succès', 'success');
+                                        setTimeout(() => dispatch(getAllSuppliers(sessionStorage.getItem('token'))), 500);
+                                    } else {
+                                        showToast('Le nom du fournisseur est requis', 'error');
+                                    }
+                                }}
+                                className="btn-save"
+                            >
+                                <Save size={16} /> Créer Fournisseur
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* Edit Supplier Modal */}
+            {editingSupplier && (
+                <div className="admin-overlay" onClick={() => setEditingSupplier(null)}>
+                    <motion.div
+                        className="admin-modal large"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="modal-header">
+                            <h3><Factory size={20} style={{ marginRight: '10px' }} />Modifier le Fournisseur</h3>
+                            <button 
+                                disabled={isSavingSupplier}
+                                onClick={() => setEditingSupplier(null)} 
+                                className="close-btn"
+                                style={{ opacity: isSavingSupplier ? 0.6 : 1, cursor: isSavingSupplier ? 'not-allowed' : 'pointer' }}
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="form-group">
+                                <label>Nom de l'Entreprise *</label>
+                                <input
+                                    type="text"
+                                    placeholder="Ex: AMS Foods Supplier"
+                                    value={editingSupplier.name}
+                                    onChange={(e) => setEditingSupplier({ ...editingSupplier, name: e.target.value })}
+                                    disabled={isSavingSupplier}
+                                    style={{ opacity: isSavingSupplier ? 0.6 : 1, cursor: isSavingSupplier ? 'not-allowed' : 'default' }}
+                                />
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label>Email</label>
+                                    <input
+                                        type="email"
+                                        placeholder="contact@supplier.com"
+                                        value={editingSupplier.email || ''}
+                                        onChange={(e) => setEditingSupplier({ ...editingSupplier, email: e.target.value })}
+                                        disabled={isSavingSupplier}
+                                        style={{ opacity: isSavingSupplier ? 0.6 : 1, cursor: isSavingSupplier ? 'not-allowed' : 'default' }}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Téléphone</label>
+                                    <input
+                                        type="tel"
+                                        placeholder="01 23 45 67 89"
+                                        value={editingSupplier.phone || ''}
+                                        onChange={(e) => setEditingSupplier({ ...editingSupplier, phone: e.target.value })}
+                                        disabled={isSavingSupplier}
+                                        style={{ opacity: isSavingSupplier ? 0.6 : 1, cursor: isSavingSupplier ? 'not-allowed' : 'default' }}
+                                    />
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label>Adresse</label>
+                                <input
+                                    type="text"
+                                    placeholder="123 Rue de la Paix"
+                                    value={editingSupplier.address || ''}
+                                    onChange={(e) => setEditingSupplier({ ...editingSupplier, address: e.target.value })}
+                                    disabled={isSavingSupplier}
+                                    style={{ opacity: isSavingSupplier ? 0.6 : 1, cursor: isSavingSupplier ? 'not-allowed' : 'default' }}
+                                />
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label>Ville</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ex: Paris"
+                                        value={editingSupplier.city || ''}
+                                        onChange={(e) => setEditingSupplier({ ...editingSupplier, city: e.target.value })}
+                                        disabled={isSavingSupplier}
+                                        style={{ opacity: isSavingSupplier ? 0.6 : 1, cursor: isSavingSupplier ? 'not-allowed' : 'default' }}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Code Postal</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ex: 75001"
+                                        value={editingSupplier.postal_code || ''}
+                                        onChange={(e) => setEditingSupplier({ ...editingSupplier, postal_code: e.target.value })}
+                                        disabled={isSavingSupplier}
+                                        style={{ opacity: isSavingSupplier ? 0.6 : 1, cursor: isSavingSupplier ? 'not-allowed' : 'default' }}
+                                    />
+                                </div>
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label>Pays</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ex: France"
+                                        value={editingSupplier.country || ''}
+                                        onChange={(e) => setEditingSupplier({ ...editingSupplier, country: e.target.value })}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Conditions de Paiement</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ex: Net 30"
+                                        value={editingSupplier.payment_terms || ''}
+                                        onChange={(e) => setEditingSupplier({ ...editingSupplier, payment_terms: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        checked={editingSupplier.is_active}
+                                        onChange={(e) => setEditingSupplier({ ...editingSupplier, is_active: e.target.checked })}
+                                    />
+                                    <span style={{ marginLeft: '8px' }}>Fournisseur actif</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button 
+                                disabled={isSavingSupplier}
+                                onClick={() => setEditingSupplier(null)} 
+                                className="btn-cancel"
+                                style={{ opacity: isSavingSupplier ? 0.6 : 1, cursor: isSavingSupplier ? 'not-allowed' : 'pointer' }}
+                            >
+                                Annuler
+                            </button>
+                            <button
+                                disabled={isSavingSupplier}
+                                onClick={() => {
+                                    if (editingSupplier.name) {
+                                        setIsSavingSupplier(true);
+                                        dispatch(updateSupplier({ id: editingSupplier.id, supplierData: editingSupplier, token: sessionStorage.getItem('token') }));
+                                        setTimeout(() => {
+                                            setEditingSupplier(null);
+                                            setIsSavingSupplier(false);
+                                            showToast('Fournisseur modifié avec succès', 'success');
+                                            dispatch(getAllSuppliers(sessionStorage.getItem('token')));
+                                        }, 500);
+                                    } else {
+                                        showToast('Le nom du fournisseur est requis', 'error');
+                                    }
+                                }}
+                                className="btn-save"
+                                style={{ opacity: isSavingSupplier ? 0.6 : 1, cursor: isSavingSupplier ? 'not-allowed' : 'pointer' }}
+                            >
+                                {isSavingSupplier ? <Loader size={16} style={{animation: 'spin 1s linear infinite', marginRight: '8px'}} /> : <Save size={16} style={{marginRight: '8px'}} />} {isSavingSupplier ? 'En cours...' : 'Enregistrer les modifications'}
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* Delete Supplier Confirmation Modal */}
+            {deletingSupplier && (
+                <div className="admin-overlay">
+                    <motion.div
+                        className="admin-modal"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        style={{ maxWidth: '400px' }}
+                    >
+                        <div className="modal-header">
+                            <h2 style={{ fontSize: '1.1rem' }}>Confirmer la suppression</h2>
+                            <button className="close-btn" onClick={() => setDeletingSupplier(null)}>
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <div className="modal-body" style={{ padding: '15px 20px' }}>
+                            <div style={{ textAlign: 'center' }}>
+                                <div style={{
+                                    width: '48px',
+                                    height: '48px',
+                                    margin: '0 auto 12px',
+                                    borderRadius: '50%',
+                                    background: 'rgba(239, 68, 68, 0.1)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}>
+                                    <Trash2 size={22} color="#ef4444" />
+                                </div>
+                                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5' }}>
+                                    Voulez-vous vraiment supprimer ce fournisseur ?<br />
+                                    Cette action est irréversible.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="cancel-pill-btn" onClick={() => setDeletingSupplier(null)}>
+                                Annuler
+                            </button>
+                            <button
+                                className="save-pill-btn"
+                                onClick={confirmDeleteSupplier}
+                                style={{ background: '#ef4444' }}
+                            >
+                                <Trash2 size={16} /> Supprimer
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* Create Customer Return Modal */}
+            {isCreatingCustomerReturn && (
+                <div className="admin-overlay" onClick={() => { setIsCreatingCustomerReturn(false); setNewCustomerReturn({ order_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' }); }}>
+                    <motion.div className="admin-modal large" onClick={(e) => e.stopPropagation()} initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}>
+                        <div className="modal-header">
+                            <h3><RotateCcw size={20} style={{ marginRight: '10px' }} />Créer un Retour Client</h3>
+                            <button onClick={() => { setIsCreatingCustomerReturn(false); setNewCustomerReturn({ order_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' }); }} className="close-btn">✕</button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="form-group">
+                                <label>Numéro de Commande *</label>
+                                <input type="text" placeholder="ex: ORD-892" value={newCustomerReturn.order_id} onChange={(e) => setNewCustomerReturn({ ...newCustomerReturn, order_id: e.target.value })} />
+                            </div>
+                            <div className="form-group">
+                                <label>Produit *</label>
+                                <input type="text" placeholder="Nom du produit" value={newCustomerReturn.product_id} onChange={(e) => setNewCustomerReturn({ ...newCustomerReturn, product_id: e.target.value })} />
+                            </div>
+                            <div className="form-group">
+                                <label>Quantité Retournée *</label>
+                                <input type="number" min="1" value={newCustomerReturn.quantity_returned} onChange={(e) => setNewCustomerReturn({ ...newCustomerReturn, quantity_returned: parseInt(e.target.value) || 0 })} />
+                            </div>
+                            <div className="form-group">
+                                <label>Raison du Retour *</label>
+                                <select value={newCustomerReturn.reason} onChange={(e) => setNewCustomerReturn({ ...newCustomerReturn, reason: e.target.value })}>
+                                    <option value="">Sélectionner une raison</option>
+                                    <option value="Produit expiré">Produit expiré</option>
+                                    <option value="Produit défectueux">Produit défectueux</option>
+                                    <option value="Quantité incorrecte">Quantité incorrecte</option>
+                                    <option value="Mauvais produit">Mauvais produit</option>
+                                    <option value="Droit de rétractation">Droit de rétractation</option>
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label>Notes (Optionnel)</label>
+                                <textarea placeholder="Détails supplémentaires..." value={newCustomerReturn.notes} onChange={(e) => setNewCustomerReturn({ ...newCustomerReturn, notes: e.target.value })} rows="3"></textarea>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button onClick={() => { setIsCreatingCustomerReturn(false); setNewCustomerReturn({ order_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' }); }} className="btn-cancel">Annuler</button>
+                            <button onClick={() => {
+                                if (newCustomerReturn.order_id && newCustomerReturn.product_id && newCustomerReturn.quantity_returned > 0 && newCustomerReturn.reason) {
+                                    dispatch(createCustomerReturn({ returnData: { ...newCustomerReturn, return_number: `RET-CUS-${Math.floor(Math.random() * 10000)}`, customer_name: 'Client', refund_amount: 0, refund_status: 'pending', status: 'pending', created_at: new Date().toISOString().split('T')[0] }, token: sessionStorage.getItem('token') }));
+                                    setNewCustomerReturn({ order_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' });
+                                    setIsCreatingCustomerReturn(false);
+                                    showToast('Retour client créé avec succès', 'success');
+                                } else {
+                                    showToast('Veuillez remplir tous les champs requis', 'error');
+                                }
+                            }} className="btn-save"><Save size={16} /> Créer Retour</button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* Create Supplier Return Modal */}
+            {isCreatingSupplierReturn && (
+                <div className="admin-overlay" onClick={() => { setIsCreatingSupplierReturn(false); setNewSupplierReturn({ po_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' }); }}>
+                    <motion.div className="admin-modal large" onClick={(e) => e.stopPropagation()} initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}>
+                        <div className="modal-header">
+                            <h3><RotateCcw size={20} style={{ marginRight: '10px' }} />Créer un Retour Fournisseur</h3>
+                            <button onClick={() => { setIsCreatingSupplierReturn(false); setNewSupplierReturn({ po_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' }); }} className="close-btn">✕</button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="form-group">
+                                <label>Numéro de Commande Achat *</label>
+                                <input type="text" placeholder="ex: PO-001" value={newSupplierReturn.po_id} onChange={(e) => setNewSupplierReturn({ ...newSupplierReturn, po_id: e.target.value })} />
+                            </div>
+                            <div className="form-group">
+                                <label>Produit *</label>
+                                <input type="text" placeholder="Nom du produit" value={newSupplierReturn.product_id} onChange={(e) => setNewSupplierReturn({ ...newSupplierReturn, product_id: e.target.value })} />
+                            </div>
+                            <div className="form-group">
+                                <label>Quantité Retournée *</label>
+                                <input type="number" min="1" value={newSupplierReturn.quantity_returned} onChange={(e) => setNewSupplierReturn({ ...newSupplierReturn, quantity_returned: parseInt(e.target.value) || 0 })} />
+                            </div>
+                            <div className="form-group">
+                                <label>Raison du Retour *</label>
+                                <select value={newSupplierReturn.reason} onChange={(e) => setNewSupplierReturn({ ...newSupplierReturn, reason: e.target.value })}>
+                                    <option value="">Sélectionner une raison</option>
+                                    <option value="Qualité insuffisante">Qualité insuffisante</option>
+                                    <option value="Date expiration trop proche">Date expiration trop proche</option>
+                                    <option value="Produit cassé/défectueux">Produit cassé/défectueux</option>
+                                    <option value="Erreur de formulaire">Erreur de formulaire</option>
+                                    <option value="Double envoi">Double envoi</option>
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label>Notes (Optionnel)</label>
+                                <textarea placeholder="Détails supplémentaires..." value={newSupplierReturn.notes} onChange={(e) => setNewSupplierReturn({ ...newSupplierReturn, notes: e.target.value })} rows="3"></textarea>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button onClick={() => { setIsCreatingSupplierReturn(false); setNewSupplierReturn({ po_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' }); }} className="btn-cancel">Annuler</button>
+                            <button onClick={() => {
+                                if (newSupplierReturn.po_id && newSupplierReturn.product_id && newSupplierReturn.quantity_returned > 0 && newSupplierReturn.reason) {
+                                    dispatch(createSupplierReturn({ returnData: { ...newSupplierReturn, return_number: `RET-SUP-${Math.floor(Math.random() * 10000)}`, supplier_name: 'Fournisseur', credit_amount: 0, credit_status: 'pending', status: 'pending', created_at: new Date().toISOString().split('T')[0] }, token: sessionStorage.getItem('token') }));
+                                    setNewSupplierReturn({ po_id: '', product_id: '', quantity_returned: 0, reason: '', notes: '' });
+                                    setIsCreatingSupplierReturn(false);
+                                    showToast('Retour fournisseur créé avec succès', 'success');
+                                } else {
+                                    showToast('Veuillez remplir tous les champs requis', 'error');
+                                }
+                            }} className="btn-save"><Save size={16} /> Créer Retour</button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* Customer Return Details Modal */}
+            {viewingCustomerReturn && (
+                <div className="admin-overlay" onClick={() => setViewingCustomerReturn(null)}>
+                    <motion.div className="admin-modal large" onClick={(e) => e.stopPropagation()} initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}>
+                        <div className="modal-header">
+                            <h3><RotateCcw size={20} style={{ marginRight: '10px' }} />Détails Retour Client</h3>
+                            <button onClick={() => setViewingCustomerReturn(null)} className="close-btn">✕</button>
+                        </div>
+                        <div className="modal-body">
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                                <div>
+                                    <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '5px' }}>Numéro Retour</div>
+                                    <div style={{ fontSize: '1.1rem', fontWeight: '600' }}>{viewingCustomerReturn.return_number}</div>
+                                </div>
+                                <div>
+                                    <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '5px' }}>Client</div>
+                                    <div style={{ fontSize: '1.1rem', fontWeight: '600' }}>{viewingCustomerReturn.customer_name}</div>
+                                </div>
+                                <div>
+                                    <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '5px' }}>Commande</div>
+                                    <div style={{ fontSize: '1.1rem', fontWeight: '600' }}>{viewingCustomerReturn.order_id}</div>
+                                </div>
+                                <div>
+                                    <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '5px' }}>Statut</div>
+                                    <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '600', background: viewingCustomerReturn.status === 'approved' ? '#d1fae5' : viewingCustomerReturn.status === 'received' ? '#dbeafe' : '#fef3c7', color: viewingCustomerReturn.status === 'approved' ? '#065f46' : viewingCustomerReturn.status === 'received' ? '#0c4a6e' : '#78350f' }}>{viewingCustomerReturn.status}</span>
+                                </div>
+                            </div>
+
+                            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '15px', marginBottom: '15px' }}>
+                                <h4 style={{ marginBottom: '10px' }}>Produit</h4>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
+                                    <div>
+                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Nom</div>
+                                        <div style={{ fontWeight: '600' }}>{viewingCustomerReturn.product_name}</div>
+                                    </div>
+                                    <div>
+                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Quantité</div>
+                                        <div style={{ fontWeight: '600' }}>{viewingCustomerReturn.quantity_returned}</div>
+                                    </div>
+                                    <div>
+                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Raison</div>
+                                        <div style={{ fontWeight: '600' }}>{viewingCustomerReturn.reason}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '15px', marginBottom: '15px' }}>
+                                <h4 style={{ marginBottom: '10px' }}>Remboursement</h4>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                                    <div>
+                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Montant</div>
+                                        <div style={{ fontSize: '1.2rem', fontWeight: '700', color: 'var(--primary)' }}>{viewingCustomerReturn.refund_amount.toFixed(2)} DH</div>
+                                    </div>
+                                    <div>
+                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Statut Remboursement</div>
+                                        <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '600', background: viewingCustomerReturn.refund_status === 'processed' ? '#d1fae5' : '#fef3c7', color: viewingCustomerReturn.refund_status === 'processed' ? '#065f46' : '#78350f' }}>{viewingCustomerReturn.refund_status}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {viewingCustomerReturn.notes && (
+                                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '15px', marginBottom: '15px' }}>
+                                    <h4 style={{ marginBottom: '10px' }}>Notes</h4>
+                                    <p style={{ color: 'var(--text-muted)', lineHeight: '1.5' }}>{viewingCustomerReturn.notes}</p>
+                                </div>
+                            )}
+
+                            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                                    <div>
+                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Date Création</div>
+                                        <div style={{ fontWeight: '600' }}>{viewingCustomerReturn.created_at}</div>
+                                    </div>
+                                    <div>
+                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Dernière Modification</div>
+                                        <div style={{ fontWeight: '600' }}>{viewingCustomerReturn.updated_at}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <select value={viewingCustomerReturn.status} onChange={(e) => setViewingCustomerReturn({ ...viewingCustomerReturn, status: e.target.value })} style={{ padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                                <option value="pending">En attente</option>
+                                <option value="approved">Approuvé</option>
+                                <option value="received">Reçu</option>
+                            </select>
+                            <button onClick={() => setViewingCustomerReturn(null)} className="btn-cancel">Fermer</button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* Supplier Return Details Modal */}
+            {viewingSupplierReturn && (
+                <div className="admin-overlay" onClick={() => setViewingSupplierReturn(null)}>
+                    <motion.div className="admin-modal large" onClick={(e) => e.stopPropagation()} initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}>
+                        <div className="modal-header">
+                            <h3><RotateCcw size={20} style={{ marginRight: '10px' }} />Détails Retour Fournisseur</h3>
+                            <button onClick={() => setViewingSupplierReturn(null)} className="close-btn">✕</button>
+                        </div>
+                        <div className="modal-body">
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                                <div>
+                                    <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '5px' }}>Numéro Retour</div>
+                                    <div style={{ fontSize: '1.1rem', fontWeight: '600' }}>{viewingSupplierReturn.return_number}</div>
+                                </div>
+                                <div>
+                                    <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '5px' }}>Fournisseur</div>
+                                    <div style={{ fontSize: '1.1rem', fontWeight: '600' }}>{viewingSupplierReturn.supplier_name}</div>
+                                </div>
+                                <div>
+                                    <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '5px' }}>Commande Achat</div>
+                                    <div style={{ fontSize: '1.1rem', fontWeight: '600' }}>{viewingSupplierReturn.po_id}</div>
+                                </div>
+                                <div>
+                                    <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '5px' }}>Statut</div>
+                                    <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '600', background: viewingSupplierReturn.status === 'sent' ? '#bfdbfe' : viewingSupplierReturn.status === 'received' ? '#d1fae5' : '#fef3c7', color: viewingSupplierReturn.status === 'sent' ? '#1e3a8a' : viewingSupplierReturn.status === 'received' ? '#065f46' : '#78350f' }}>{viewingSupplierReturn.status}</span>
+                                </div>
+                            </div>
+
+                            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '15px', marginBottom: '15px' }}>
+                                <h4 style={{ marginBottom: '10px' }}>Produit</h4>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
+                                    <div>
+                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Nom</div>
+                                        <div style={{ fontWeight: '600' }}>{viewingSupplierReturn.product_name}</div>
+                                    </div>
+                                    <div>
+                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Quantité</div>
+                                        <div style={{ fontWeight: '600' }}>{viewingSupplierReturn.quantity_returned}</div>
+                                    </div>
+                                    <div>
+                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Raison</div>
+                                        <div style={{ fontWeight: '600' }}>{viewingSupplierReturn.reason}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '15px', marginBottom: '15px' }}>
+                                <h4 style={{ marginBottom: '10px' }}>Crédit Fournisseur</h4>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                                    <div>
+                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Montant</div>
+                                        <div style={{ fontSize: '1.2rem', fontWeight: '700', color: 'var(--primary)' }}>{viewingSupplierReturn.credit_amount.toFixed(2)} DH</div>
+                                    </div>
+                                    <div>
+                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Statut Crédit</div>
+                                        <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '600', background: viewingSupplierReturn.credit_status === 'processed' ? '#d1fae5' : '#fef3c7', color: viewingSupplierReturn.credit_status === 'processed' ? '#065f46' : '#78350f' }}>{viewingSupplierReturn.credit_status}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {viewingSupplierReturn.notes && (
+                                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '15px', marginBottom: '15px' }}>
+                                    <h4 style={{ marginBottom: '10px' }}>Notes</h4>
+                                    <p style={{ color: 'var(--text-muted)', lineHeight: '1.5' }}>{viewingSupplierReturn.notes}</p>
+                                </div>
+                            )}
+
+                            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                                    <div>
+                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Date Création</div>
+                                        <div style={{ fontWeight: '600' }}>{viewingSupplierReturn.created_at}</div>
+                                    </div>
+                                    <div>
+                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Dernière Modification</div>
+                                        <div style={{ fontWeight: '600' }}>{viewingSupplierReturn.updated_at}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <select value={viewingSupplierReturn.status} onChange={(e) => setViewingSupplierReturn({ ...viewingSupplierReturn, status: e.target.value })} style={{ padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                                <option value="pending">En attente</option>
+                                <option value="approved">Approuvé</option>
+                                <option value="sent">Envoyé</option>
+                                <option value="received">Reçu</option>
+                            </select>
+                            <button onClick={() => setViewingSupplierReturn(null)} className="btn-cancel">Fermer</button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
         </div>
     );
 };

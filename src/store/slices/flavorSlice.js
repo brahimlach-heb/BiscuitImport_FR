@@ -121,12 +121,14 @@ const flavorSlice = createSlice({
       })
       .addCase(updateFlavor.fulfilled, (state, action) => {
         state.loading = false;
-        const index = state.flavors.findIndex(flavor => flavor.id === action.payload.id);
-        if (index !== -1) {
-          state.flavors[index] = action.payload;
-        }
-        if (state.currentFlavor && state.currentFlavor.id === action.payload.id) {
-          state.currentFlavor = action.payload;
+        if (action.payload && action.payload.id) {
+          const index = state.flavors.findIndex(flavor => flavor && flavor.id === action.payload.id);
+          if (index !== -1) {
+            state.flavors[index] = action.payload;
+          }
+          if (state.currentFlavor && state.currentFlavor.id === action.payload.id) {
+            state.currentFlavor = action.payload;
+          }
         }
       })
       .addCase(updateFlavor.rejected, (state, action) => {
