@@ -2224,7 +2224,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
 
         const totalStock = stocksList.reduce((sum, stock) => sum + (parseInt(stock?.stock) || 0), 0);
         const lowStockCount = stockAlerts.length;
-        const outOfStock = stocksList.filter(s => s && parseInt(s?.stock) <= parseInt(s?.stock_securite || 0)).length;
+        const outOfStock = stocksList.filter(s => s && parseInt(s?.stock) === 0).length;
 
         const handleAdjustStock = async () => {
             if (!stockAdjustmentModal || !adjustmentQuantity) {
@@ -3211,7 +3211,10 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                                 {po.status === 'sent' && (
                                                 <button
                                                     className="po-action-btn receive"
-                                                    onClick={() => setIsReceivingPO(po.id)}
+                                                    onClick={async () => {
+                                                        await dispatch(getPurchaseOrderById({ id: po.id, token: sessionStorage.getItem('token') }));
+                                                        setIsReceivingPO(po.id);
+                                                    }}
                                                     title="Réceptionner"
                                                 >
                                                     <CheckCircle2 size={16} /> Réceptionner
@@ -3503,16 +3506,6 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                             placeholder="Rempli automatiquement"
                                         />
                                     </div>
-                                </div>
-                                <div className="form-group">
-                                    <label>Quantité Reçue</label>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        value={newPoItem.received_quantity}
-                                        onChange={(e) => setNewPoItem({ ...newPoItem, received_quantity: parseInt(e.target.value) || 0 })}
-                                        placeholder="0"
-                                    />
                                 </div>
                                 <div className="form-group">
                                     <div className="price-total">
@@ -7581,25 +7574,96 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                             <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '10px' }}>
                                 Cela mettra à jour le statut en "Reçue" et ajustera les stocks de l'entrepôt.
                             </p>
+                            <div style={{ marginTop: '15px', marginBottom: '15px' }}>
+                                <button
+                                    onClick={() => {
+                                        const items = currentPOState?.items || currentPOState?.lines || [];
+                                        
+                                        // Vérifier si tous les produits sont déjà cochés
+                                        const allChecked = items.every(item => (poReceiveItems[item.id] || 0) === item.quantity);
+                                        
+                                        const allItems = {};
+                                        if (allChecked) {
+                                            // Si tous cochés, décocher tous
+                                            setPoReceiveItems({});
+                                        } else {
+                                            // Sinon, cocher tous
+                                            items?.forEach(item => {
+                                                allItems[item.id] = item.quantity;
+                                            });
+                                            setPoReceiveItems(allItems);
+                                        }
+                                    }}
+                                    style={{
+                                        padding: '8px 16px',
+                                        background: '#10b981',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        cursor: 'pointer',
+                                        fontSize: '0.85rem',
+                                        fontWeight: '600'
+                                    }}
+                                >
+                                    ✓ Tout Réceptionner
+                                </button>
+                            </div>
                             <div className="po-receive-items">
-                                <h4 style={{ marginTop: '20px', marginBottom: '10px' }}>Articles à Réceptionner</h4>
-                                {purchaseOrders.find(po => po.id === isReceivingPO)?.items?.map((item, idx) => (
-                                    <div key={idx} className="receive-item">
-                                        <div className="receive-item-info">
-                                            <div className="receive-item-name">{item.product_name}</div>
-                                            <div className="receive-item-qty">Quantité: {item.quantity}</div>
-                                        </div>
+                                <h4 style={{ marginTop: '10px', marginBottom: '15px' }}>Articles à Réceptionner</h4>
+                                {(() => {
+                                    const items = currentPOState?.items || currentPOState?.lines || [];
+                                    return items && items.length > 0 ? items?.map((item, idx) => (
+                                    <div key={idx} className="receive-item" style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '12px',
+                                        padding: '12px',
+                                        background: 'var(--bg-main)',
+                                        borderRadius: '8px',
+                                        marginBottom: '10px',
+                                        border: '1px solid var(--border-color)'
+                                    }}>
                                         <input
-                                            type="number"
-                                            min="0"
-                                            max={item.quantity}
-                                            placeholder="Reçu"
-                                            value={poReceiveItems[item.id] || ''}
-                                            onChange={(e) => setPoReceiveItems({ ...poReceiveItems, [item.id]: parseInt(e.target.value) || 0 })}
-                                            className="receive-qty-input"
+                                            type="checkbox"
+                                            checked={(poReceiveItems[item.id] || 0) === item.quantity}
+                                            onChange={(e) => setPoReceiveItems({ 
+                                                ...poReceiveItems, 
+                                                [item.id]: e.target.checked ? item.quantity : 0 
+                                            })}
+                                            style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                                            title="Cocher pour recevoir totalement"
                                         />
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontWeight: '600', marginBottom: '4px' }}>{item.product_name}</div>
+                                            <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                                                Commandé: {item.quantity} unités
+                                            </div>
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max={item.quantity}
+                                                placeholder="0"
+                                                value={poReceiveItems[item.id] || 0}
+                                                onChange={(e) => setPoReceiveItems({ ...poReceiveItems, [item.id]: parseInt(e.target.value) || 0 })}
+                                                style={{
+                                                    width: '70px',
+                                                    padding: '8px',
+                                                    border: '1px solid var(--border-color)',
+                                                    borderRadius: '6px',
+                                                    background: 'var(--bg-card)'
+                                                }}
+                                            />
+                                            <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>/ {item.quantity}</span>
+                                        </div>
                                     </div>
-                                ))}
+                                )) : (
+                                    <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                        Chargement des articles...
+                                    </div>
+                                );
+                                })()}
                             </div>
                         </div>
                         <div className="modal-footer">
