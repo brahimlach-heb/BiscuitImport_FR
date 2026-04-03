@@ -1637,7 +1637,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                 alignItems: 'center',
                                 justifyContent: 'center'
                             }}>
-                                <DollarSign size={24} color="#10b981" />
+                                <Banknote size={24} color="#10b981" />
                             </div>
                             <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: '600', margin: 0 }}>
                                 Revenu Total
@@ -3019,10 +3019,10 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                     <div className="po-card">
                         <div className="po-card-label">Montant Total</div>
                         <div className="po-card-value" style={{ color: 'var(--primary)' }}>
-                            {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(totalPOAmount)}
+                            {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'MAD' }).format(totalPOAmount)}
                         </div>
                         <div className="po-card-change positive">
-                            <DollarSign size={16} /> Budget
+                            <Banknote size={16} /> Montant
                         </div>
                     </div>
 
@@ -3082,7 +3082,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                         <td>{po.supplier_name || 'N/A'}</td>
                                         <td>{po.warehouse_id || 'N/A'}</td>
                                         <td className="po-amount">
-                                            {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(po.total_amount || 0)}
+                                            {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'MAD' }).format(po.total_amount || 0)}
                                         </td>
                                         <td>
                                             <span className={`status-badge ${po.status}`}>
@@ -3336,7 +3336,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                                     <div className="po-item-info">
                                                         <div className="po-item-name">{item.product_name}</div>
                                                         <div className="po-item-details">
-                                                            {item.quantity} x {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.unit_price)} = <strong>{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.quantity * item.unit_price)}</strong>
+                                                            {item.quantity} x {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'MAD' }).format(item.unit_price)} = <strong>{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'MAD' }).format(item.quantity * item.unit_price)}</strong>
                                                         </div>
                                                     </div>
                                                     <button
@@ -3348,7 +3348,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                                 </div>
                                             ))}
                                             <div className="po-items-total">
-                                                <strong>Montant Total: {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(newPurchaseOrder.lines.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0))}</strong>
+                                                <strong>Montant Total: {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'MAD' }).format(newPurchaseOrder.lines.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0))}</strong>
                                             </div>
                                         </div>
                                     ) : (
@@ -3510,7 +3510,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                 <div className="form-group">
                                     <div className="price-total">
                                         <span>Montant: </span>
-                                        <strong>{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format((newPoItem.quantity || 0) * (newPoItem.unit_price || 0))}</strong>
+                                        <strong>{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'MAD' }).format((newPoItem.quantity || 0) * (newPoItem.unit_price || 0))}</strong>
                                     </div>
                                 </div>
                             </div>
@@ -4928,7 +4928,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                               (viewingProduct.price_roles && viewingProduct.price_roles.length > 0)) && (
                                 <div className="form-section">
                                     <div className="section-header-inline">
-                                        <h3><DollarSign size={18} /> Prix par Rôle</h3>
+                                        <h3><Banknote size={18} /> Prix (DH) par Rôle</h3>
                                     </div>
                                     <div className="role-prices-list">
                                         {(viewingProduct.role_prices || viewingProduct.price_roles || []).map((rp, idx) => {
@@ -5139,7 +5139,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                             {/* Role Prices Section */}
                             <div className="form-section">
                                 <div className="section-header-inline">
-                                    <h3><DollarSign size={18} /> Prix par Rôle</h3>
+                                    <h3><DollarSign size={18} /> Prix (DH) par Rôle</h3>
                                     <button className="icon-btn add" onClick={() => setIsAddingRolePrice(true)} title="Ajouter un prix">
                                         <Plus size={16} />
                                     </button>
@@ -5697,7 +5697,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                             {/* Role Prices Section */}
                             <div className="form-section">
                                 <div className="section-header-inline">
-                                    <h3><DollarSign size={18} /> Prix par Rôle</h3>
+                                    <h3><DollarSign size={18} /> Prix (DH) par Rôle</h3>
                                     <button className="icon-btn add" onClick={() => setIsAddingRolePrice(true)} title="Ajouter un prix">
                                         <Plus size={16} />
                                     </button>
@@ -5931,7 +5931,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="modal-header">
-                            <h2><DollarSign size={22} style={{ display: 'inline', marginRight: '10px' }} />{editingRolePriceIndex !== null ? 'Modifier le Prix' : 'Ajouter un Prix'}</h2>
+                            <h2><Banknote size={22} style={{ display: 'inline', marginRight: '10px' }} />{editingRolePriceIndex !== null ? 'Modifier le Prix (DH)' : 'Ajouter un Prix (DH)'}</h2>
                             <button className="close-btn" onClick={() => {
                                 setIsAddingRolePrice(false);
                                 setEditingRolePriceIndex(null);
@@ -7423,7 +7423,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                 </div>
                                 <div className="form-group">
                                     <label>Montant Total</label>
-                                    <input type="text" value={new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(viewingPO.total_amount || 0)} disabled />
+                                    <input type="text" value={new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'MAD' }).format(viewingPO.total_amount || 0)} disabled />
                                 </div>
                             </div>
 
@@ -7451,8 +7451,8 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                                 <tr key={idx}>
                                                     <td>{item.product_name || 'N/A'}</td>
                                                     <td>{item.quantity}</td>
-                                                    <td>{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.unit_price || 0)}</td>
-                                                    <td className="amount">{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format((item.quantity || 0) * (item.unit_price || 0))}</td>
+                                                    <td>{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'MAD' }).format(item.unit_price || 0)}</td>
+                                                    <td className="amount">{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'MAD' }).format((item.quantity || 0) * (item.unit_price || 0))}</td>
                                                     {(viewingPO.lines?.length > 0) && <td>{item.received_quantity || 0}</td>}
                                                 </tr>
                                             ))}
