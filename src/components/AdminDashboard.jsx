@@ -809,7 +809,8 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
         ingredients: '',
         is_active: true,
         flavors: [],
-        role_prices: []
+        role_prices: [],
+        product_type: ''
     });
     const [newRole, setNewRole] = useState({ code: '', label: '', is_active: true });
     const [editProduct, setEditProduct] = useState({
@@ -824,7 +825,8 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
         ingredients: '',
         is_active: true,
         flavors: [],
-        role_prices: []
+        role_prices: [],
+        product_type: ''
     });
 
     // Flavor management states
@@ -1039,7 +1041,8 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                 ingredients: fullProduct.ingredients || '',
                 is_active: fullProduct.is_active ?? true,
                 flavors: fullProduct.flavors || [],
-                role_prices: rolePrices
+                role_prices: rolePrices,
+                product_type: fullProduct.product_type || ''
             });
             setIsEditingProduct(fullProduct);
         } catch (error) {
@@ -1259,6 +1262,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
         if (!product.brand.trim()) errors.brand = 'La marque est requise';
         if (!product.price || parseFloat(product.price) <= 0) errors.price = 'Prix invalide';
         if (!product.stock || parseInt(product.stock) < 0) errors.stock = 'Stock invalide';
+        if (!product.product_type) errors.product_type = 'Le type de produit est requis';
         setProductErrors(errors);
         return Object.keys(errors).length === 0;
     };
@@ -1473,7 +1477,8 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                 ingredients: editProduct.ingredients,
                 is_active: editProduct.is_active,
                 flavors: editProduct.flavors,
-                price_roles: editProduct.role_prices
+                price_roles: editProduct.role_prices,
+                product_type: editProduct.product_type
             };
             setIsProductLoading(true);
             try {
@@ -1482,7 +1487,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                 if (updateProduct.fulfilled.match(result)) {
                     showToast('Produit mis à jour avec succès');
                     setIsEditingProduct(null);
-                    setEditProduct({ name: '', category: '', brand: '', price: '', stock: '', stock_securite: '', packageUnit: '', description: '', ingredients: '', is_active: true, flavors: [], role_prices: [] });
+                    setEditProduct({ name: '', category: '', brand: '', price: '', stock: '', stock_securite: '', packageUnit: '', description: '', ingredients: '', is_active: true, flavors: [], role_prices: [], product_type: '' });
                     setProductErrors({});
                     // Recharger la liste des produits
                     await dispatch(getAllProducts({ category: null, token }));
@@ -4966,7 +4971,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
             {isEditingProduct && (
                 <div className="admin-overlay" onClick={() => {
                     setIsEditingProduct(null);
-                    setEditProduct({ name: '', category: '', brand: '', price: '', stock: '', stock_securite: '', description: '', ingredients: '', is_active: true, flavors: [], role_prices: [] });
+                    setEditProduct({ name: '', category: '', brand: '', price: '', stock: '', stock_securite: '', description: '', ingredients: '', is_active: true, flavors: [], role_prices: [], product_type: '' });
                     setProductErrors({});
                 }}>
                     <motion.div
@@ -4979,7 +4984,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                             <h2><Package size={22} style={{ display: 'inline', marginRight: '10px' }} />Modifier le Produit</h2>
                             <button className="close-btn" onClick={() => {
                                 setIsEditingProduct(null);
-                                setEditProduct({ name: '', category: '', brand: '', price: '', stock: '', stock_securite: '', description: '', ingredients: '', is_active: true, flavors: [], role_prices: [] });
+                                setEditProduct({ name: '', category: '', brand: '', price: '', stock: '', stock_securite: '', description: '', ingredients: '', is_active: true, flavors: [], role_prices: [], product_type: '' });
                                 setProductErrors({});
                             }}><X size={20} /></button>
                         </div>
@@ -5063,6 +5068,20 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                                         value={editProduct.packageUnit}
                                         onChange={(e) => setEditProduct({ ...editProduct, packageUnit: e.target.value })}
                                     />
+                                </div>
+                                <div className="form-group">
+                                    <label>Type de produit *</label>
+                                    <select
+                                        className="admin-select"
+                                        value={editProduct.product_type || ''}
+                                        onChange={(e) => setEditProduct({ ...editProduct, product_type: e.target.value })}
+                                    >
+                                        <option value="">Sélectionner un type</option>
+                                        <option value="candy">Candy</option>
+                                        <option value="ams">AMS</option>
+                                        <option value="both">Les deux</option>
+                                    </select>
+                                    {productErrors.product_type && <span className="error-text">{productErrors.product_type}</span>}
                                 </div>
                             </div>
                             <div className="form-group">
@@ -5183,7 +5202,7 @@ const AdminDashboard = ({ onBack, initialProducts, initialCategories }) => {
                         <div className="modal-footer">
                             <button className="cancel-pill-btn" onClick={() => {
                                 setIsEditingProduct(null);
-                                setEditProduct({ name: '', category: '', brand: '', price: '', stock: '', description: '', ingredients: '', is_active: true, flavors: [], role_prices: [] });
+                                setEditProduct({ name: '', category: '', brand: '', price: '', stock: '', description: '', ingredients: '', is_active: true, flavors: [], role_prices: [], product_type: '' });
                                 setProductErrors({});
                             }}>Annuler</button>
                             <button className="save-pill-btn" onClick={handleUpdateProduct} disabled={isProductLoading}>
